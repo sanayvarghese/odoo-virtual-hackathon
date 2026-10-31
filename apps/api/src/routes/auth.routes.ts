@@ -9,6 +9,7 @@ const sqlLower = (col: typeof users.email) => sql`lower(${col})`;
 import { db } from '../db/client.js';
 import { customers, emailTokens, users } from '../db/schema.js';
 import { AppError, badRequest, notFound } from '../lib/errors.js';
+import { parseOrThrow } from '../lib/route-helpers.js';
 import { emailSchema, nameSchema, passwordSchema } from '../lib/validators.js';
 import { sendTokenEmail, sendMessage } from '../lib/mailbox.js';
 import {
@@ -120,6 +121,20 @@ export default async function authRoutes(app: FastifyInstance) {
       customer = rows[0] ?? null;
     }
     return { user, customer, csrf: req.cookies?.['bl_csrf'] ?? null };
+  });
+
+  /* ------------------------------------------------------------ patch me */
+  // A user can rename their own account (display name only; email is identity).
+  app.patch('/me', { schema: { tags: ['auth'] } }, async (req) => {
+    req.csrfValidate();
+    const user = requireAuth(req);
+    const data = parseOrThrow(z.object({ name: nameSchema }), req.body ?? {});
+    const [row] = await db
+      .update(users)
+      .set({ name: data.name, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
+      .returning();
+    return { user: publicUser(row!) };
   });
 
   /* ------------------------------------------------------------ get csrf */

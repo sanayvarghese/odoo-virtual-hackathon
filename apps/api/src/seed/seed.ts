@@ -382,6 +382,7 @@ for (let i = 0; i < due.length; i++) {
 }
 
 // payments: pay off ~60% of confirmed (mix of methods + one partial)
+// paid invoices are BACKDATED across ~6 months so the revenue charts have history
 const confirmed = await db.select({ id: invoices.id, total: invoices.total, customerId: invoices.customerId }).from(invoices).where(eq(invoices.status, 'confirmed'));
 const methods = ['card', 'bank_transfer', 'upi', 'cash', 'cheque'] as const;
 let paidCount = 0;
@@ -391,19 +392,66 @@ for (let i = 0; i < confirmed.length; i++) {
   const partial = i * 7 % 10 === 6; // one or two partial payments
   const amount = partial ? Math.max(100, Math.floor(inv.total * 0.4)) : inv.total;
   const method = methods[i % methods.length]!;
-  const paidAt = shiftDays(-(i % 12));
+  // spread across the last ~6 months (deterministic), keeping a recency tail
+  const monthsBack = Math.floor(i / 2) % 6;
+  const paidAt = shiftDays(-(monthsBack * 30 + (i % 22) + 1));
   await pool.query(
     `INSERT INTO payments (invoice_id, customer_id, method, amount, paid_at, reference, note)
      VALUES ($1,$2,$3,$4,$5,$6,$7)`,
     [inv.id, inv.customerId, method, amount, paidAt, `PM-${1000 + paidCount}`, partial ? 'Part payment received' : 'Settled in full'],
   );
-  await pool.query(
-    `UPDATE invoices SET paid_total = $2, status = CASE WHEN $2 >= total THEN 'paid' ELSE status END WHERE id = $1`,
-    [inv.id, amount],
-  );
+  // the invoice was issued ~5 days before its payment
+  await pool.query(`UPDATE invoices SET paid_total = $2, status = CASE WHEN $2 >= total THEN 'paid' ELSE status END, issue_date = $3, due_date = $4 WHERE id = $1`, [
+    inv.id,
+    amount,
+    shiftDays(-(monthsBack * 30 + (i % 22) + 6)),
+    shiftDays(-(monthsBack * 30) + 5),
+  ]);
   paidCount++;
 }
-console.log(`✓ ${paidCount} payments recorded`);
+console.log(`✓ ${paidCount} payments recorded (spread across 6 months for the charts)`);
+
+/* ------------------------------------------ historical revenue for charts */
+// One settled invoice per active subscription for each of the previous 5
+// months, written straight (the seed bypasses the FSM on purpose). This is
+// what gives /reports its multi-month series.
+const actives = await pool.query<{ id: number; customer_id: number; plan_id: number; quantity: number }>(
+  `SELECT id, customer_id, plan_id, quantity FROM subscriptions WHERE status = 'active' ORDER BY id`,
+);
+const planRows = await pool.query<{ id: number; price: number; name: string }>('SELECT id, price, name FROM plans');
+let histCount = 0;
+for (let m = 5; m >= 1; m--) {
+  for (const [si, sub] of actives.rows.entries()) {
+    if ((si + m) % 2 === 0) continue; // deterministic variety, not every sub every month
+    // plans.id is bigserial → pg hands it back as a string; compare numerically
+    const plan = planRows.rows.find((p) => Number(p.id) === Number(sub.plan_id));
+    if (!plan) continue;
+    console.log(`  (history: creating month -${m} for sub #${sub.id} plan ${plan.name})`);
+    const subtotal = plan.price * sub.quantity;
+    const taxTotal = Math.round(subtotal * 0.18); // seeded lines carry GST 18%
+    const total = subtotal + taxTotal;
+    const issueDate = shiftDays(-(m * 30 + 24) + ((si * 3) % 6));
+    const paidAt = shiftDays(-(m * 30) - ((si * 5) % 12));
+    const number = await nextNumber('invoice');
+    const inv = await pool.query<{ id: number }>(
+      `INSERT INTO invoices (number, subscription_id, customer_id, status, issue_date, due_date, period_start, period_end, subtotal, discount_total, tax_total, total, paid_total)
+       VALUES ($1,$2,$3,'paid',$4,$5,$6,$7,$8,0,$9,$10,$10) RETURNING id`,
+      [number, sub.id, sub.customer_id, issueDate, shiftDays(-(m * 30) + 6), shiftDays(-(m * 30 + 30)), shiftDays(-(m * 30)), subtotal, taxTotal, total],
+    );
+    await pool.query(
+      `INSERT INTO invoice_lines (invoice_id, description, quantity, unit_price, tax_total, subtotal, total)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [inv.rows[0]!.id, `${plan.name} — monthly billing`, sub.quantity, plan.price, taxTotal, subtotal, subtotal + taxTotal],
+    );
+    await pool.query(
+      `INSERT INTO payments (invoice_id, customer_id, method, amount, paid_at, reference, note)
+       VALUES ($1,$2,$3,$4,$5,$6,'Historical settlement')`,
+      [inv.rows[0]!.id, sub.customer_id, methods[(si + m) % methods.length], total, paidAt, `PM-${2000 + histCount}`],
+    );
+    histCount++;
+  }
+}
+console.log(`✓ ${histCount} historical invoices settled (chart history)`);
 
 console.log('\nDemo accounts (password: ' + env.SEED_PASSWORD + ')');
 console.log('  admin@brightloop.dev · staff@brightloop.dev · customer@brightloop.dev · customer2@brightloop.dev');

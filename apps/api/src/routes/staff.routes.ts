@@ -73,8 +73,7 @@ export default async function staffRoutes(app: FastifyInstance) {
     return reply.status(201).send({ staff: { id: staff!.id, email: staff!.email, name: staff!.name, role: staff!.role } });
   });
 
-  app.post('/:id/deactivate', { schema: { tags: ['staff'] }, preHandler: requireRole('admin') }, async (req) => {
-    req.csrfValidate();
+  app.post('/:id/deactivate', { schema: { tags: ['staff'] }, preHandler: requireRole('admin') }, async (req) => {    req.csrfValidate();
     const { id } = idParamSchema.parse(req.params);
     const admin = requireAuth(req);
     const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
@@ -90,5 +89,28 @@ export default async function staffRoutes(app: FastifyInstance) {
       summary: `Deactivated staff ${rows[0].email}`,
     });
     return { ok: true };
+  });
+
+  /* --------------------------------------------------------- promote to staff */
+  // Scene: "the admin can promote a user to staff." Only customer accounts can
+  // be promoted; admins cannot be created or overwritten from here.
+  app.post('/:id/promote', { schema: { tags: ['staff'] }, preHandler: requireRole('admin') }, async (req) => {
+    req.csrfValidate();
+    const admin = requireAuth(req);
+    const { id } = idParamSchema.parse(req.params);
+    const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    if (!rows[0]) throw new AppError('not_found', 'User not found.');
+    if (rows[0].role !== 'customer') {
+      throw new AppError('conflict', 'Only customer accounts can be promoted to staff.');
+    }
+    await db.update(users).set({ role: 'staff', updatedAt: new Date() }).where(eq(users.id, id));
+    await db.insert(auditLog).values({
+      actorId: admin.id,
+      action: 'staff.promoted',
+      entity: 'user',
+      entityId: id,
+      summary: `Promoted ${rows[0].email} from customer to staff`,
+    });
+    return { ok: true, user: { id, email: rows[0].email, name: rows[0].name, role: 'staff' } };
   });
 }

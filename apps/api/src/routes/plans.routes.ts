@@ -36,6 +36,39 @@ const planSchema = z
   });
 
 export default async function planRoutes(app: FastifyInstance) {
+  /* ------------------------------------------------ public catalogue (home) */
+  // No auth: the marketing page shows what can be subscribed to right now.
+  // Deliberately returns only safe marketing fields.
+  app.get('/public', { schema: { tags: ['plans'] } }, async () => {
+    const rows = await db
+      .select({
+        id: plans.id,
+        name: plans.name,
+        description: plans.description,
+        interval: plans.interval,
+        price: plans.price,
+        minQty: plans.minQty,
+        autoRenew: plans.autoRenew,
+        allowPause: plans.allowPause,
+        allowEarlyCancel: plans.allowEarlyCancel,
+        autoCloseAtEnd: plans.autoCloseAtEnd,
+        validTo: plans.validTo,
+        productName: products.name,
+        productSku: products.sku,
+      })
+      .from(plans)
+      .innerJoin(products, eq(products.id, plans.productId))
+      .where(
+        and(
+          eq(plans.isActive, true),
+          sql`${plans.validFrom} <= CURRENT_DATE`,
+          or(sql`${plans.validTo} IS NULL`, sql`${plans.validTo} >= CURRENT_DATE`)!,
+        ),
+      )
+      .orderBy(plans.price);
+    return { items: rows };
+  });
+
   app.get('/', { schema: { tags: ['plans'] }, preHandler: requireAuthHook }, async (req) => {
     const conditions = [];
     const query = (req.query ?? {}) as Record<string, string | undefined>;
