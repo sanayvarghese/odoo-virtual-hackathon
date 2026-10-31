@@ -1,0 +1,240 @@
+@import "tailwindcss";
+
+/*
+ * Brightloop app tokens — "Achromatic ledger" direction.
+ * Chrome holds no colour: ink for text and money, one chart hue (#1d5fbf)
+ * on the main data element only, hue elsewhere is a small change signal.
+ * Ground is a low-chroma blue-grey (ledger world), cards stay white.
+ */
+@theme {
+  --color-ground: #f2f4f7;
+  --color-surface: #ffffff;
+  --color-raised: #ededed;
+  --color-line: #e6e6e6;
+  --color-rule: #f0f0f0;
+  --color-control: #d4d4d4;
+  --color-ink: #0a0a0a;
+  --color-ink-2: #141414;
+  --color-muted: #6b6b6b;
+  --color-faint: #9a9a9a;
+  --color-ledger: #1d5fbf; /* the one chart hue */
+  --color-ledger-soft: #e8effa;
+  --color-positive: #2e7d32;
+  --color-positive-tint: #dcfae5;
+  --color-positive-ink: #04250e;
+  --color-negative: #c4242a;
+  --color-negative-tint: #ffedea;
+  --color-negative-ink: #831c1e;
+  --color-warning: #92400e;
+  --color-warning-tint: #fffbeb;
+
+  --radius-card: 8px;
+  --radius-control: 6px;
+
+  --font-sans: "Geist", Inter, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 14px;
+  --text-title: 24px;
+  --text-section: 16px;
+  --text-kpi: 30px;
+}
+
+html {
+  font-family: var(--font-sans);
+  background: var(--color-ground);
+  color: var(--color-ink);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Everything that displays numbers, especially money */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+.money {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.mono-id {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ---- primitives ---- */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-control);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  white-space: nowrap;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--color-ledger);
+  outline-offset: 1px;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-ink-2);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #2b2b2b;
+}
+.btn-ghost {
+  background: #e5e5e5;
+  color: var(--color-ink);
+} /* the style's secondary grey pill */
+.btn-ghost:hover:not(:disabled) {
+  background: #dedede;
+}
+.btn-outline {
+  background: var(--color-surface);
+  border-color: var(--color-line);
+  color: var(--color-ink);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--color-rule);
+}
+.btn-danger {
+  background: var(--color-surface);
+  border-color: var(--color-line);
+  color: var(--color-negative);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--color-negative-tint);
+}
+.input,
+.select,
+.textarea {
+  height: 36px;
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  padding: 0 10px;
+  font-size: 14px;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.textarea {
+  height: auto;
+  padding: 8px 10px;
+  min-height: 80px;
+  resize: vertical;
+}
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--color-control);
+  box-shadow: 0 0 0 3px rgba(20, 20, 20, 0.06);
+}
+.field-label {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pill-positive {
+  background: var(--color-positive-tint);
+  color: var(--color-positive-ink);
+}
+.pill-negative {
+  background: var(--color-negative-tint);
+  color: var(--color-negative-ink);
+}
+.pill-warning {
+  background: var(--color-warning-tint);
+  color: var(--color-warning);
+}
+.pill-neutral {
+  background: var(--color-raised);
+  color: #3d3d3d;
+}
+
+/* ---- tables: 44px rows, ink figures, hairline rules ---- */
+.btable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.btable thead th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-muted);
+  text-align: left;
+  padding: 0 12px;
+  height: 40px;
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
+}
+.btable tbody td {
+  padding: 0 12px;
+  height: 44px;
+  border-bottom: 1px solid var(--color-rule);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.btable tbody tr:hover {
+  background: #fafafa;
+}
+.btable .num,
+.btable thead th.num {
+  text-align: right;
+}
+
+/* delta signal — the only hue outside data */
+.delta-up {
+  color: var(--color-positive);
+}
+.delta-down {
+  color: var(--color-negative);
+  /* ▁ triangle alternates via content */
+}
+.delta-down::before {
+  content: "▾";
+}
+.delta-up::before {
+  content: "▴";
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-control);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

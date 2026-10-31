@@ -13,3 +13,4 @@ uploads/
 tmp/
 *.tsbuildinfo
 .ps.txt.bak
+.taste-skill/

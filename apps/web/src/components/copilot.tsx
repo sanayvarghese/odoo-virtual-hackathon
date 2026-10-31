@@ -1,0 +1,289 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Bot, X, Paperclip, ArrowUp } from "lucide-react";
+import { useAuth, isStaff } from "@/lib/auth-context";
+import { useToast } from "@/components/toast";
+
+/**
+ * Floating AI copilot dock. Talks to POST /api/ai/chat (proxied SSE) with role-
+ * scoped tools; staff/admin can attach .xlsx/.csv/.txt for the bulk importer.
+ * Runs on the local Ollama model — no cloud, no keys.
+ */
+
+interface ChatMsg {
+  role: "user" | "assistant";
+  content: string;
+  attachment?: { name: string; size: number };
+}
+
+const QUICK_PROMPTS_STAFF = [
+  "What are this month's KPIs?",
+  "Show me overdue invoices",
+  "Which active subscriptions used SEATS15?",
+];
+
+const QUICK_PROMPTS_CUSTOMER = [
+  "Which of my subscriptions renew next?",
+  "Do I have any unpaid invoices?",
+  "What plans would fit a 12-person team?",
+];
+
+export function CopilotDock() {
+  const { user } = useAuth();
+  const staff = isStaff(user?.role);
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
+  const [toolNotes, setToolNotes] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [input, setInput] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  const scrollToEnd = useCallback(() => {
+    requestAnimationFrame(() => {
+      bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight });
+    });
+  }, []);
+
+  useEffect(scrollToEnd, [messages, scrollToEnd]);
+
+  function csrfHeader(): Record<string, string> {
+    const m = document.cookie.match(/(?:^|;\s*)bl_csrf=([^;]*)/);
+    return m ? { "X-CSRF-Token": decodeURIComponent(m[1]!) } : {};
+  }
+
+  async function send() {
+    const text = input.trim();
+    if ((!text && !file) || busy) return;
+    setBusy(true);
+    setInput("");
+
+    const userMsg: ChatMsg = {
+      role: "user",
+      content: text || (file ? `Import this file: ${file.name}` : ""),
+      attachment: file ? { name: file.name, size: file.size } : undefined,
+    };
+    setMessages((m) => [...m, userMsg, { role: "assistant", content: "" }]);
+    setToolNotes([]);
+
+    try {
+      const form = new FormData();
+      form.set(
+        "messages",
+        JSON.stringify(
+          [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
+        ),
+      );
+      if (file) form.set("file", file);
+
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: csrfHeader(),
+        credentials: "include",
+        body: form,
+      });
+      if (!res.ok || !res.body) {
+        setMessages((m) => [
+          ...m.slice(0, -1),
+          { role: "assistant", content: "The copilot could not be reached. Is the API running?" },
+        ]);
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let acc = "";
+      let buf = "";
+      let importJobId: string | null = null;
+
+      const flushAcc = () =>
+        setMessages((m) => [...m.slice(0, -1), { role: "assistant", content: acc }]);
+
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let nl: number;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line.startsWith("data:")) continue;
+          let ev: Record<string, unknown>;
+          try {
+            ev = JSON.parse(line.slice(5).trim());
+          } catch {
+            continue;
+          }
+          switch (ev.type) {
+            case "token":
+              acc += String(ev.text ?? "");
+              flushAcc();
+              break;
+            case "tool_use":
+              setToolNotes((n) => [...n, `→ ${ev.name ?? ev.tool ?? "tool"}`]);
+              break;
+            case "tool_result":
+              setToolNotes((n) => [...n, "✓ your data"]);
+              break;
+            case "done": {
+              const summary = ev.summary as { importJobId?: string } | undefined;
+              importJobId = summary?.importJobId ?? null;
+              break;
+            }
+            case "error":
+              acc += `\n\n${String(ev.message ?? "Something went wrong.")}`;
+              flushAcc();
+              break;
+          }
+        }
+      }
+      if (importJobId) {
+        acc += `\n\nImport staged · job ${importJobId} · review under Products → Bulk import.`;
+        flushAcc();
+        toast("info", "Import staged — review the rows before committing");
+      }
+      if (!acc.trim()) {
+        acc = "I did not get an answer on that one — try rephrasing.";
+        flushAcc();
+      }
+    } catch {
+      setMessages((m) => [
+        ...m.slice(0, -1),
+        { role: "assistant", content: "Connection interrupted. Try again in a moment." },
+      ]);
+      toast("error", "Copilot stream failed");
+    } finally {
+      setBusy(false);
+      setFile(null);
+      scrollToEnd();
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-6 right-6 z-[80] flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full bg-ink-2 text-white text-sm font-medium shadow-[0_10px_30px_rgba(0,0,0,0.18)] hover:bg-[#2b2b2b] transition-colors cursor-pointer"
+      >
+        <Bot size={17} strokeWidth={1.5} />
+        Ask Brightloop AI
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-5 right-5 z-[80] w-[400px] max-h-[660px] flex flex-col card overflow-hidden shadow-[0_16px_48px_rgba(0,0,0,0.16)]">
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--color-rule)" }}>
+        <div className="flex items-center gap-2">
+          <Bot size={16} strokeWidth={1.5} />
+          <span className="text-sm font-medium">Brightloop AI</span>
+          <span className="pill pill-neutral">runs local</span>
+        </div>
+        <button onClick={() => setOpen(false)} className="text-faint hover:text-ink cursor-pointer" aria-label="Close">
+          <X size={16} />
+        </button>
+      </div>
+
+      <div ref={bodyRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[240px]">
+        {messages.length === 0 && (
+          <div className="pt-2 space-y-3">
+            <p className="text-sm text-muted">I answer from your Brightloop data. Try one of these:</p>
+            {(staff ? QUICK_PROMPTS_STAFF : QUICK_PROMPTS_CUSTOMER).map((q) => (
+              <button
+                key={q}
+                onClick={() => setInput(q)}
+                className="block w-full text-left text-sm card px-3 py-2 hover:bg-[#fafafa] cursor-pointer"
+              >
+                {q}
+              </button>
+            ))}
+            {staff && (
+              <p className="text-xs text-faint">
+                Tip: attach a .xlsx / .csv / .txt to bulk-add products, plans or customers.
+              </p>
+            )}
+          </div>
+        )}
+
+        {messages.map((m, i) => (
+          <div key={i} className={`text-sm leading-relaxed ${m.role === "user" ? "text-right" : ""}`}>
+            <div
+              className={
+                m.role === "user"
+                  ? "inline-block rounded-[6px] px-2.5 py-1.5 text-left"
+                  : "whitespace-pre-wrap min-h-[1em]"
+              }
+              style={m.role === "user" ? { background: "#e9e9e9", maxWidth: "92%" } : undefined}
+            >
+              {m.attachment && (
+                <div className="text-xs text-muted flex items-center gap-1 mb-1">
+                  <Paperclip size={12} /> {m.attachment.name}
+                </div>
+              )}
+              {m.content || (busy && i === messages.length - 1 ? <span className="text-faint">thinking…</span> : "")}
+            </div>
+          </div>
+        ))}
+
+        {toolNotes.length > 0 && (
+          <div className="text-xs text-faint flex flex-wrap gap-x-3">
+            {toolNotes.slice(-3).map((n, i) => (
+              <span key={i}>{n}</span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="px-3 py-2.5" style={{ borderTop: "1px solid var(--color-rule)" }}>
+        {file && (
+          <div className="flex items-center gap-2 text-xs text-muted mb-2">
+            <Paperclip size={12} />
+            <span className="truncate flex-1">{file.name}</span>
+            <button className="hover:text-negative cursor-pointer" onClick={() => setFile(null)}>
+              remove
+            </button>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5">
+          {staff && (
+            <label
+              className="shrink-0 p-2 rounded-full hover:bg-[#ededed] cursor-pointer"
+              title="Attach .xlsx/.csv/.txt for bulk import"
+            >
+              <Paperclip size={15} strokeWidth={1.5} />
+              <input
+                type="file"
+                className="hidden"
+                accept=".xlsx,.csv,.txt"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          )}
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            placeholder="Ask about subscriptions, invoices…"
+            className="input h-9"
+            disabled={busy}
+          />
+          <button
+            onClick={() => void send()}
+            disabled={busy || (!input.trim() && !file)}
+            className="shrink-0 p-2 rounded-full bg-ink-2 text-white disabled:opacity-40 cursor-pointer"
+            aria-label="Send"
+          >
+            <ArrowUp size={15} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
