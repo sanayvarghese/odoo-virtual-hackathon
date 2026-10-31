@@ -254,47 +254,35 @@ code.lp-mono { background: none; padding: 0; }
 .lp-run-card .num { text-align: right; font-variant-numeric: tabular-nums; }
 .lp-run-foot { margin-top: 14px; font-size: 13px; color: var(--muted); }
 
-/* ---------- feature bands ---------- */
+/* ---------- capability statements ---------- */
 .lp-bands { display: flex; flex-direction: column; }
 .lp-band {
-  min-height: 148px;
-  padding: 26px var(--pad);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 32px;
+  min-height: 0;
+  padding: clamp(36px, 4.5vw, 64px) var(--pad);
   background: var(--ground);
-  transition: background 220ms ease;
 }
-.lp-band.is-on { background: var(--hue-tint); }
-.lp-band:nth-child(2).is-on { background: #eaf3ea; }
-.lp-band:nth-child(3).is-on { background: var(--warn-tint); }
-.lp-band-copy h2 { font-size: clamp(26px, 3.2vw, 46px); letter-spacing: -0.035em; line-height: 1.05; color: var(--faint); transition: color 220ms ease; }
-.lp-band.is-on .lp-band-copy h2 { color: var(--ink); }
-.lp-band-copy p { margin-top: 8px; font-size: 15px; color: var(--muted); max-width: 66ch; }
-.lp-band-copy > p { display: none; }
-.lp-band.is-on .lp-band-copy > p { display: block; }
-.lp-switch {
+.lp-band:nth-child(2) { background: #eef1f5; }
+.lp-band:nth-child(3) { background: #fff; }
+.lp-band:nth-child(4) { background: #eef1f5; }
+.lp-band-copy h2 {
+  font-size: clamp(28px, 3.4vw, 52px);
+  letter-spacing: -0.04em;
+  line-height: 1.04;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
+}
+.lp-band-dot {
   flex: 0 0 auto;
-  width: 64px;
-  height: 36px;
-  border: 0;
-  border-radius: 999px;
-  background: #c9cdd3;
-  padding: 4px;
-  cursor: pointer;
-  transition: background 200ms ease;
-}
-.lp-band.is-on .lp-switch { background: var(--ink); }
-.lp-switch i {
-  display: block;
-  width: 28px;
-  height: 28px;
+  width: 0.34em;
+  height: 0.34em;
   border-radius: 50%;
-  background: #fff;
-  transition: transform 200ms ease;
+  border: 0.075em solid var(--hue);
+  display: inline-block;
+  transform: translateY(-0.06em);
 }
-.lp-band.is-on .lp-switch i { transform: translateX(28px); }
+.lp-band-copy p { margin-top: 12px; font-size: 16.5px; color: var(--muted); max-width: 72ch; }
 
 /* ---------- lifecycle ---------- */
 .lp-life {

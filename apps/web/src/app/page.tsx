@@ -71,23 +71,19 @@ const STATES = [
 const FEATURES = [
   {
     on: "Nobody types invoices by hand.",
-    off: "Typing invoices by hand, then.",
-    consequence: "One billing pass found every subscription due today and drafted their invoices in a single transaction.",
+    consequence: "One billing pass found every subscription due today and drafted their invoices in a single transaction. Running it twice is safe: the period key says no.",
   },
   {
     on: "Plans set the rules.",
-    off: "Rules nobody set.",
-    consequence: "Pause, early cancel, auto-renew and auto-close live on each plan. The portal reads the flags before showing an action.",
+    consequence: "Pause, early cancel, auto-renew and auto-close live on each plan. The portal reads the flags before showing an action, and the server checks them again.",
   },
   {
     on: "Tax freezes at confirm.",
-    off: "Tax that rewrote itself.",
-    consequence: "GST 18 / 12 / 0% and WELCOME10 snapshot onto the invoice lines. Editing the rule later changes nothing already issued.",
+    consequence: "GST 18 / 12 / 0% and the discount codes snapshot onto the invoice lines when an invoice is confirmed. Editing a rule later never rewrites issued history.",
   },
   {
     on: "Ask your data, locally.",
-    off: "Ask a stranger's cloud.",
-    consequence: "The copilot streams from a local Ollama model with role-scoped tools: overdue lists, KPIs, plan advice. No keys, no uploads.",
+    consequence: "The copilot streams from a local Ollama model with role-scoped tools: overdue lists, KPIs, plan advice. No keys, no uploads, no cloud.",
   },
 ];
 
@@ -159,7 +155,6 @@ const FAQ = [
 
 export default function HomePage() {
   const [runState, setRunState] = useState<"idle" | "running" | "done">("idle");
-  const [features, setFeatures] = useState([true, false, true, false]);
   const [stage, setStage] = useState(3);
   const [selected, setSelected] = useState(0);
 
@@ -174,13 +169,15 @@ export default function HomePage() {
 
   // Reveal-on-scroll: armed only once JS is running (no-JS visitors and the
   // reduced page always see the finished content), transform/opacity only.
+  // A failsafe reveals everything after 2.5s — no state can leave blank space.
   useEffect(() => {
     const root = document.querySelector(".lp");
     if (!root) return;
     root.classList.add("lp-armed");
     const els = Array.from(root.querySelectorAll(".lp-reveal"));
+    const revealAll = () => els.forEach((el) => el.classList.add("is-inview"));
     if (!("IntersectionObserver" in window)) {
-      els.forEach((el) => el.classList.add("is-inview"));
+      revealAll();
       return;
     }
     const io = new IntersectionObserver(
@@ -195,7 +192,11 @@ export default function HomePage() {
       { threshold: 0.1 },
     );
     els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
+    const failsafe = setTimeout(revealAll, 2500);
+    return () => {
+      io.disconnect();
+      clearTimeout(failsafe);
+    };
   }, []);
 
   // The signature move: the hero loop turns as you scroll (independent
@@ -322,22 +323,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ------------------------------------------ features: switches */}
+      {/* ------------------------------------------ features: statements */}
       <section className="lp-bands" aria-label="What Brightloop does">
         {FEATURES.map((f, i) => (
-          <div key={f.on} className={`lp-band lp-reveal${features[i] ? " is-on" : ""}`}>
+          <div key={f.on} className={`lp-band lp-band-${i % 2}`}>
             <div className="lp-band-copy">
-              <h2>{features[i] ? f.on : f.off}</h2>
+              <h2>
+                <i className="lp-band-dot" aria-hidden />
+                {f.on}
+              </h2>
               <p>{f.consequence}</p>
             </div>
-            <button
-              className="lp-switch"
-              onClick={() => setFeatures((old) => old.map((v, j) => (j === i ? !v : v)))}
-              aria-pressed={features[i]}
-              aria-label={`Toggle: ${f.on}`}
-            >
-              <i />
-            </button>
           </div>
         ))}
       </section>
