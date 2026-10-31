@@ -33,51 +33,51 @@ Demo accounts (created by seed; passwords all `Bright@2025` unless changed):
 Legend: [ ] todo · [~] in progress · [x] done · [-] skipped/won't do · [!] blocked, note blocker
 
 ### Phase A — Foundations
-- [ ] Monorepo scaffold (npm workspaces, apps/api, apps/web, tsconfigs, .env, .gitignore)
-- [ ] API skeleton: Fastify app, env validation, error handler, swagger, health route
-- [ ] DB: drizzle schema (all tables in PLAN §4), db:push + views/dashboard SQL migrations
-- [ ] Auth: register/login/logout/me, argon2, session cookies (httpOnly+SameSite), CSRF, rate limits
-- [ ] Password policy + validation steps of ps.pdf (unique email, >8 chars, upper/lower/special)
-- [ ] Forgot/reset via dev mailbox tokens
-- [ ] Roles/RBAC plugin (requireRole) + demo seed with 4 accounts
+- [x] Monorepo scaffold (npm workspaces, apps/api, apps/web, tsconfigs, .env, .gitignore)
+- [x] API skeleton: Fastify app, env validation, error handler, swagger, health route
+- [x] DB: drizzle schema (all tables in PLAN §4), db:push + views/dashboard SQL migrations
+- [x] Auth: register/login/logout/me, argon2, session cookies (httpOnly+SameSite), CSRF, rate limits
+- [x] Password policy + validation steps of ps.pdf (unique email, >8 chars, upper/lower/special)
+- [x] Forgot/reset via dev mailbox tokens
+- [x] Roles/RBAC plugin (requireRole) + demo seed with 4 accounts
 
 ### Phase B — Catalog & rules
-- [ ] Products CRUD + variants (+560 Odoo-brand example) — admin only
-- [ ] Product bulk import (AI path in Phase F; plain mapper now)
-- [ ] Tax rules CRUD; Discounts CRUD + usage counters & scopes — admin only
-- [ ] Staff management (admin only adds staff)
+- [x] Products CRUD + variants (+560 Odoo-brand example) — admin only
+- [~] Product bulk import (AI path in Phase F; plain mapper now)
+- [x] Tax rules CRUD; Discounts CRUD + usage counters & scopes — admin only
+- [x] Staff management (admin only adds staff)
 
 ### Phase C — Quotes & subscriptions
-- [ ] Quotation templates + lines (valid_days)
-- [ ] Subscriptions: create from template/scratch (draft), send→quotation, confirm, activate, renew, pause/resume, cancel, close (FSM, illegal transitions 409)
-- [ ] Subscription numbering SUB-YYYY-NNNNN via numberings table
+- [x] Quotation templates + lines (valid_days)
+- [x] Subscriptions: create from template/scratch (draft), send→quotation, confirm, activate, renew, pause/resume, cancel, close (FSM, illegal transitions 409)
+- [x] Subscription numbering SUB-YYYY-NNNNN via numberings table
 - [ ] Customer portal pages: my subscriptions w/ plan-flag-gated actions
 
 ### Phase D — Billing
-- [ ] Billing service: due-date computation per interval & min_qty, pass & skip nothing, no double billing (unique(subscription_id, period))
-- [ ] POST /billing/run (admin): creates N draft invoices in one tx, returns counts
-- [ ] Tax + discount application at confirm time (snapshot into invoice lines)
-- [ ] Invoice numbering INV-YYYY-NNNNNN, invoice statuses, send/print (print view), cancel
-- [ ] Payments: record w/ method/amount/date/note, partials, paid/outstanding states
+- [x] Billing service: due-date computation per interval & min_qty, pass & skip nothing, no double billing (unique(subscription_id, period))
+- [x] POST /billing/run (admin): creates N draft invoices in one tx, returns counts
+- [x] Tax + discount application at confirm time (snapshot into invoice lines)
+- [x] Invoice numbering INV-YYYY-NNNNNN, invoice statuses, send/print (print view), cancel
+- [x] Payments: record w/ method/amount/date/note, partials, paid/outstanding states
 - [ ] Customer portal pay-now (mock checkout, server-validated) + invoice cards
 
 ### Phase E — Reports
-- [ ] /reports/summary + /reports/series (revenue, MRR, overdue) role-scoped
-- [ ] SQL views: v_mrr_monthly, v_outstanding, v_revenue_monthly
-- [ ] Admin dashboard UI: KPI cards, filters, charts (Recharts), overdue table (Ullas)
+- [x] /reports/summary + /reports/series (revenue, MRR, overdue) role-scoped
+- [x] SQL views: v_mrr, v_outstanding, v_revenue_monthly, v_overdue
+- [~] Admin dashboard UI: KPI bands, charts (own SVG), outstanding table (Ullas)
 
 ### Phase F — AI copilot (Johnu)
-- [ ] Ollama client (OpenAI-compat, streaming, tools, OLLAMA_MODEL env)
-- [ ] Tool registry with role checks (kpi/list/find scoped helpers)
-- [ ] /ai/chat SSE endpoint + chat UI (drawer, markdown-lite, tool_result chips)
-- [ ] /ai/import hybrid parser (xlsx local parse → LLM header map on 5 sample rows → deterministic map → zod validate → optional soft-repass LLM on bad rows → preview)
-- [ ] Preview grid UI + commit endpoint (transactional chunk batch insert) + ai_import_jobs audit
-- [ ] Customer assistant tools + sales quote-draft tool
+- [x] Ollama client (native /api/chat, streaming, tools, OLLAMA_MODEL env)
+- [x] Tool registry with role checks (kpi/list/find scoped helpers)
+- [~] /ai/chat SSE endpoint + chat UI (drawer, markdown-lite, tool_result chips)
+- [x] /ai/import hybrid parser (xlsx local parse → LLM header map on 5 sample rows → deterministic map → zod validate → optional soft-repass LLM on bad rows → preview)
+- [ ] Preview grid UI + commit endpoint wiring (preview grid UI pending) + ai_import_jobs audit
+- [~] Customer assistant tools + sales quote-draft tool
 
 ### Phase G — Design sweep (skills: design-taste-frontend, impeccable, emil-design-eng)
-- [ ] Design tokens (dark-first, accent ramp, spacing scale, typography, tabular-nums)
-- [ ] Component library (Button/Input/Card/Table/Badge/Modal/Drawer/Toast/Tabs/KPI/EmptyState/Skeleton)
-- [ ] Landing page, auth pages, admin shell (sidebar+topbar+⌘K), portal shell
+- [x] Design tokens: "Achromatic ledger" direction dealt via skill (ink chrome, one hue #1d5fbf, Geist + Geist Mono, white cards on #f2f4f7 ground)
+- [~] Component library (Button/Input/Card/Table/Badge/Modal/Toast/Tabs/KPI/EmptyState/LineChart done; Modal/Drawer pending)
+- [~] Landing page, auth pages, admin shell (sidebar ⌘K pending), portal shell
 - [ ] Pipeline board for subscriptions, invoice print view, billing-run animation
 - [ ] Mobile-nav + responsive passes (skill: mobile-native rules for touch)
 
@@ -89,6 +89,14 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped/won't do · [!] b
 
 ## Session log (newest first)
 
+### Session 2 — 2026-10-31 (frontend build-out)
+- Dealt app art direction with design-taste-frontend `draw.mjs --app --kind finance` → chose **Achromatic ledger**: ink chrome (no brand colour), white cards on #f2f4f7 ground, one chart hue #1d5fbf on the main data element, Geist + Geist Mono (mono for IDs), radii 8/6, 44px table rows. Tokens live in `apps/web/src/app/globals.css` (@theme).
+- Scaffolded `apps/web` (Next 15, React 19, Tailwind v4, TanStack Query). API client auto-attaches X-CSRF-Token from bl_csrf cookie; errors map to ApiError (server envelope `{error:{message,code}}`).
+- Built: app shell (open-plane sidebar 256px, no top bar), floating AI copilot dock (SSE via next.config rewrite /api/ai/chat → :4000), LineChart component per direction rules (straight ink line, dashed hover guide, tabular-nums).
+- Auth cluster (Alwin): /login (demo-account one-click fill), /signup (live email-available check + password policy ticks), forgot/reset/verify, /mailbox dev mailbox reader.
+- Dashboard + Reports (Ullas): KPI band (MRR/cash/outstanding/overdue), revenue line chart, outstanding-invoices table, pipeline counts; Reports page with metric tabs (cash / MRR by interval bars / pipeline counts).
+- Commits: sanay×3 (scaffold, dashboard typo-fix…) alwin×1 (auth) — pushed to origin/main.
+
 ### Session 1 — [date: 2026-10-31]
 - Read ps.pdf (extracted to ps.txt) + Expectations.txt. Agreed plan (see PLAN.md).
 - Wrote PLAN.md and PROGRESS.md (this file).
@@ -97,6 +105,12 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped/won't do · [!] b
 ## Gotchas / decisions log (-append emerging facts here so next agent doesn't trip)
 - Postgres installed locally, credentials postgres/root @5432. `psql` NOT in bash PATH; use Node `pg` for everything (drizzle-kit push uses its own driver, fine).
 - Use `git-switch switch <name>` before each commit to rotate authors (Sanay ≈ 40-45%).
+- Report routes are under prefix `/api/v1/reports` (NOT /report). Money = integer cents; percent fields = value*100.
+- /reports/summary `revenueSeries[].month` is a full ISO timestamp — slice(0,7) for month labels. outstandingList ids come back as strings.
+- Next rewrites proxy only `/api/ai/chat` → API (SSE). All other fetches go direct to http://localhost:4000/api/v1 with credentials:include.
+- Tailwind v4 tokens declared in globals.css @theme (colors: ground, surface, line, rule, ink, muted, faint, ledger(#1d5fbf), positive/negative/warning + tints). Money class = bold + tabular-nums; IDs use font-mono.
+- Auth links point at web :3000 (APP_URL): /verify?token=… and /reset-password?token=… (page group (auth)).
+- git-switch switch sanay|alwin|johnu|ullas rotates git + gh; push once per milestone (origin/main).
 
 ## Deferred / nice-to-have
 - Email attachments/invoice PDF via real pdf lib (print-view @media print is enough for demo)
