@@ -159,13 +159,20 @@ export function parseCSV(text: string, sep: string): string[][] {
   return out;
 }
 
-/** tabular text (paste from spreadsheet): split by 2+ spaces or tabs */
+/** tabular text (paste from spreadsheet): tab > comma > 2+ spaces */
 export function parseText(text: string): ParsedSheet {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0).slice(0, 5001);
+  const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim().length > 0).slice(0, 5001);
   if (lines.length === 0) throw new AppError('validation_error', 'No content provided.');
-  const sep = lines[0]!.includes('\t') ? '\t' : /\s{2,}/;
-  const arr = lines.map((l) => (typeof sep === 'string' ? l.split(sep) : l.split(sep)));
-  return normalizeSheet(arr as string[][]);
+  const first = lines[0]!;
+  let arr: string[][];
+  if (first.includes('\t')) {
+    arr = lines.map((l) => l.split('\t'));
+  } else if ((first.match(/,/g)?.length ?? 0) >= 1 && lines.slice(0, 4).every((l) => l.includes(','))) {
+    arr = parseCSV(lines.join('\n'), ',');
+  } else {
+    arr = lines.map((l) => l.split(/\s{2,}/));
+  }
+  return normalizeSheet(arr);
 }
 
 /* ------------------------------------------------------------ header mapping */
@@ -300,7 +307,7 @@ export async function llmSoftRepair(
   for (const batch of batches) {
     const prompt = `Fix these ${entity} import rows so they pass validation. Output ONLY JSON: {"rows":[{"row":1,...corrected fields...}]}
 Target fields: ${ENTITY_SPECS[entity].map((f) => f.field).join(', ')}.
-Prices are rupees (numbers). Dates YYYY-MM-DD. Interval daily|weekly|monthly|yearly. If a value cannot be corrected, keep it and it will fail.
+Prices must be plain NUMBERS in rupees (e.g. 1299 for ₹1,299). Dates YYYY-MM-DD. Interval daily|weekly|monthly|yearly. If a value cannot be corrected, omit the row.
 Rows: ${JSON.stringify(batch.map((r) => ({ row: r.row, data: r.data, errors: r.errors })))}`;
     const raw = await ollamaComplete([{ role: 'user', content: prompt }], { maxTokens: 1600, temperature: 0 });
     try {
@@ -309,6 +316,20 @@ Rows: ${JSON.stringify(batch.map((r) => ({ row: r.row, data: r.data, errors: r.e
         const original = badRows.find((b) => b.row === r.row);
         if (!original) continue;
         const errors: string[] = [];
+        for (const f of ENTITY_SPECS[entity]) {
+          const origVal = (original.data[f.field] ?? '').trim();
+          const newVal = String(r.data[f.field] ?? '').trim();
+          if (newVal && !origVal) {
+            // ANTI-FABRICATION: the model may fix formatting, never invent values
+            // the operator never provided.
+            delete r.data[f.field];
+            continue;
+          }
+          if (newVal && f.normalize) {
+            const norm = f.normalize(newVal);
+            r.data[f.field] = norm ?? newVal;
+          }
+        }
         validateRow(entity, r.data, errors);
         const required = ENTITY_SPECS[entity].filter((f) => f.required).map((f) => f.field);
         for (const req of required) {

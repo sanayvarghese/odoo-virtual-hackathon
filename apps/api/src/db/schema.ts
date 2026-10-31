@@ -157,7 +157,7 @@ export const products = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index('products_sku_idx').on(t.sku),
+    uniqueIndex('products_sku_idx').on(t.sku),
     index('products_active_idx').on(t.isActive),
     check('products_price_ok', sql`${t.salesPrice} >= 0 AND ${t.costPrice} >= 0`),
   ],
