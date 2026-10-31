@@ -36,13 +36,13 @@ function readCookie(name: string): string | null {
   return m ? decodeURIComponent(m[1]) : null;
 }
 
-async function request<T>(
-  path: string,
-  init: RequestInit & { body?: unknown; raw?: false },
-): Promise<T> {
-  const method = (init.method ?? "GET").toUpperCase();
-  const headers = new Headers(init.headers);
-  if (init.body !== undefined && !(init.body instanceof FormData)) {
+type RequestInitEx = Omit<RequestInit, "body"> & { body?: unknown };
+
+async function request<T>(path: string, init: RequestInitEx): Promise<T> {
+  const { body, ...rest } = init;
+  const method = (rest.method ?? "GET").toUpperCase();
+  const headers = new Headers(rest.headers);
+  if (body !== undefined && !(body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   const csrf = readCookie("bl_csrf");
@@ -51,16 +51,11 @@ async function request<T>(
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
+    ...rest,
     method,
     headers,
     credentials: "include",
-    body:
-      init.body === undefined
-        ? undefined
-        : init.body instanceof FormData
-          ? init.body
-          : JSON.stringify(init.body),
+    body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
     // never let Next cache API calls
     cache: "no-store",
   });
