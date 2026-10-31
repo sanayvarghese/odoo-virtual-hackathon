@@ -43,7 +43,6 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.register(rateLimit, { max: 300, timeWindow: '1 minute' });
   app.register(multipart, {
     limits: { fileSize: 5 * 1024 * 1024, files: 1 },
-    attachFieldsToBody: 'key-values',
   } as unknown as FastifyMultipartOptions);
 
   app.setErrorHandler((err: unknown, _req, reply) => {

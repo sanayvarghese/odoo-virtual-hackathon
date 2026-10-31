@@ -69,8 +69,8 @@ export default async function aiRoutes(app: FastifyInstance) {
       let filename = 'pasted-text';
       let parsed;
       if (contentType.includes('multipart/form-data')) {
-        const file = await (req.body as { file?: { toBuffer: () => Promise<Buffer>; filename: string } }).file;
-        if (!file || typeof file.toBuffer !== 'function') {
+        const file = await req.file();
+        if (!file) {
           throw new AppError('validation_error', 'Attach a .xlsx, .csv or paste text in the field `text`.');
         }
         const buffer = await file.toBuffer();
