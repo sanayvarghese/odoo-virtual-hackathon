@@ -11,7 +11,7 @@ import { env } from '../env.js';
  * admin role, since the mailbox leaks token *user ids* (never the raw tokens).
  */
 export default async function devRoutes(app: FastifyInstance) {
-  app.get('/dev/mailbox', { schema: { tags: ['dev'] } }, async (req) => {
+  app.get('/mailbox', { schema: { tags: ['dev'] } }, async (req) => {
     req.csrfValidate(); // GET: no-op; kept for uniformity of the security check surface
     const items = await listMailbox(50);
     // join to show recipient email
@@ -24,14 +24,14 @@ export default async function devRoutes(app: FastifyInstance) {
     return { items: withEmail, note: 'Dev-only mailbox. In production these would be sent by SMTP.' };
   });
 
-  app.get('/dev/config', { schema: { tags: ['dev'] } }, async () => ({
+  app.get('/config', { schema: { tags: ['dev'] } }, async () => ({
     apiUrl: `http://localhost:${env.PORT}`,
     appUrl: env.APP_URL,
     aiModel: env.OLLAMA_MODEL,
     aiUrl: env.OLLAMA_URL,
   }));
 
-  app.post('/dev/gate', { schema: { hide: true }, preHandler: requireRole('admin') }, async (req) => {
+  app.post('/gate', { schema: { hide: true }, preHandler: requireRole('admin') }, async (req) => {
     req.csrfValidate();
     if (!req.user) throw new Error('unreachable: requireRole guarantees user');
     return { ok: true, user: req.user.email };

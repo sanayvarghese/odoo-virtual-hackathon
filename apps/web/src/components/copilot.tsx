@@ -4,11 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, X, Paperclip, ArrowUp } from "lucide-react";
 import { useAuth, isStaff } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
+import { API_BASE } from "@/lib/api";
 
 /**
- * Floating AI copilot dock. Talks to POST /api/ai/chat (proxied SSE) with role-
- * scoped tools; staff/admin can attach .xlsx/.csv/.txt for the bulk importer.
- * Runs on the local Ollama model — no cloud, no keys.
+ * Floating AI copilot dock.
+ *  - Questions stream from POST /api/ai/chat (Next rewrite → API SSE) with
+ *    role-scoped tools over the local Ollama model. JSON body only — the SSE
+ *    route parses JSON, not multipart.
+ *  - Staff can attach a .xlsx/.csv/.txt: it goes to the bulk-import endpoint
+ *    (parse → map → stage → preview); nothing is committed from the dock.
  */
 
 interface ChatMsg {
@@ -16,6 +20,8 @@ interface ChatMsg {
   content: string;
   attachment?: { name: string; size: number };
 }
+
+type ImportEntity = "product" | "plan" | "customer";
 
 const QUICK_PROMPTS_STAFF = [
   "What are this month's KPIs?",
@@ -29,6 +35,13 @@ const QUICK_PROMPTS_CUSTOMER = [
   "What plans would fit a 12-person team?",
 ];
 
+interface ImportPreviewSummary {
+  jobId: string;
+  totalRows: number;
+  validCount: number;
+  invalidCount: number;
+}
+
 export function CopilotDock() {
   const { user } = useAuth();
   const staff = isStaff(user?.role);
@@ -38,6 +51,7 @@ export function CopilotDock() {
   const [busy, setBusy] = useState(false);
   const [input, setInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [entity, setEntity] = useState<ImportEntity>("product");
   const bodyRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -52,6 +66,103 @@ export function CopilotDock() {
   function csrfHeader(): Record<string, string> {
     const m = document.cookie.match(/(?:^|;\s*)bl_csrf=([^;]*)/);
     return m ? { "X-CSRF-Token": decodeURIComponent(m[1]!) } : {};
+  }
+
+  /** Bulk import path: parse → stage → link to preview. Nothing is committed here. */
+  async function runImport(attached: File, question: string) {
+    const form = new FormData();
+    form.set("file", attached);
+    const res = await fetch(`${API_BASE}/ai/import?entity=${entity}`, {
+      method: "POST",
+      headers: csrfHeader(),
+      credentials: "include",
+      body: form,
+    });
+    const json = await res.json().catch(() => undefined);
+    if (!res.ok) {
+      const msg = json?.error?.message ?? `Import staging failed (${res.status})`;
+      setMessages((m) => [...m.slice(0, -1), { role: "assistant", content: `⚠ ${msg}` }]);
+      return;
+    }
+    const p = json as ImportPreviewSummary;
+    const kind = entity === "product" ? "products" : entity === "plan" ? "plans" : "customers";
+    let text = `Staged ${p.validCount} of ${p.totalRows} ${kind} from “${attached.name}”.`;
+    if (p.invalidCount > 0) {
+      text += ` ${p.invalidCount} row${p.invalidCount === 1 ? " is" : "s are"} invalid and will be skipped unless forced.`;
+    }
+    text += `\n\nNothing is written yet — open Products → Bulk import to review the rows and press Commit. Job ${p.jobId}.`;
+    if (question.trim()) {
+      text = `You asked: “${question.trim()}” — I staged the import instead of answering directly.\n\n${text}`;
+    }
+    setMessages((m) => [...m.slice(0, -1), { role: "assistant", content: text }]);
+    toast("info", "Import staged — review the rows before committing");
+  }
+
+  /** Chat path: JSON body → SSE stream of token / tool_use / tool_result events. */
+  async function runChat(history: ChatMsg[]) {
+    const res = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...csrfHeader() },
+      credentials: "include",
+      body: JSON.stringify({ messages: history.map((m) => ({ role: m.role, content: m.content })) }),
+    });
+    if (!res.ok || !res.body) {
+      let msg = "The copilot could not be reached. Is the API running?";
+      try {
+        const j = await res.json();
+        if (j?.error?.message) msg = j.error.message;
+      } catch {
+        /* keep default */
+      }
+      setMessages((m) => [...m.slice(0, -1), { role: "assistant", content: msg }]);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let acc = "";
+    let buf = "";
+
+    const flushAcc = () =>
+      setMessages((m) => [...m.slice(0, -1), { role: "assistant", content: acc }]);
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        let ev: Record<string, unknown>;
+        try {
+          ev = JSON.parse(line.slice(5).trim());
+        } catch {
+          continue;
+        }
+        switch (ev.type) {
+          case "token":
+            acc += String(ev.text ?? "");
+            flushAcc();
+            break;
+          case "tool_use":
+            setToolNotes((n) => [...n, `→ ${ev.name ?? ev.tool ?? "tool"}`]);
+            break;
+          case "tool_result":
+            setToolNotes((n) => [...n, "✓ your data"]);
+            break;
+          case "error":
+            acc += `\n\n${String(ev.message ?? "Something went wrong.")}`;
+            flushAcc();
+            break;
+        }
+      }
+    }
+    if (!acc.trim()) {
+      acc = "I did not get an answer on that one — try rephrasing.";
+      flushAcc();
+    }
   }
 
   async function send() {
@@ -69,91 +180,17 @@ export function CopilotDock() {
     setToolNotes([]);
 
     try {
-      const form = new FormData();
-      form.set(
-        "messages",
-        JSON.stringify(
-          [...messages, userMsg].map((m) => ({ role: m.role, content: m.content })),
-        ),
-      );
-      if (file) form.set("file", file);
-
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: csrfHeader(),
-        credentials: "include",
-        body: form,
-      });
-      if (!res.ok || !res.body) {
-        setMessages((m) => [
-          ...m.slice(0, -1),
-          { role: "assistant", content: "The copilot could not be reached. Is the API running?" },
-        ]);
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let acc = "";
-      let buf = "";
-      let importJobId: string | null = null;
-
-      const flushAcc = () =>
-        setMessages((m) => [...m.slice(0, -1), { role: "assistant", content: acc }]);
-
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let nl: number;
-        while ((nl = buf.indexOf("\n")) >= 0) {
-          const line = buf.slice(0, nl).trim();
-          buf = buf.slice(nl + 1);
-          if (!line.startsWith("data:")) continue;
-          let ev: Record<string, unknown>;
-          try {
-            ev = JSON.parse(line.slice(5).trim());
-          } catch {
-            continue;
-          }
-          switch (ev.type) {
-            case "token":
-              acc += String(ev.text ?? "");
-              flushAcc();
-              break;
-            case "tool_use":
-              setToolNotes((n) => [...n, `→ ${ev.name ?? ev.tool ?? "tool"}`]);
-              break;
-            case "tool_result":
-              setToolNotes((n) => [...n, "✓ your data"]);
-              break;
-            case "done": {
-              const summary = ev.summary as { importJobId?: string } | undefined;
-              importJobId = summary?.importJobId ?? null;
-              break;
-            }
-            case "error":
-              acc += `\n\n${String(ev.message ?? "Something went wrong.")}`;
-              flushAcc();
-              break;
-          }
-        }
-      }
-      if (importJobId) {
-        acc += `\n\nImport staged · job ${importJobId} · review under Products → Bulk import.`;
-        flushAcc();
-        toast("info", "Import staged — review the rows before committing");
-      }
-      if (!acc.trim()) {
-        acc = "I did not get an answer on that one — try rephrasing.";
-        flushAcc();
+      if (file) {
+        await runImport(file, text);
+      } else {
+        await runChat([...messages, userMsg]);
       }
     } catch {
       setMessages((m) => [
         ...m.slice(0, -1),
         { role: "assistant", content: "Connection interrupted. Try again in a moment." },
       ]);
-      toast("error", "Copilot stream failed");
+      toast("error", "Copilot request failed");
     } finally {
       setBusy(false);
       setFile(null);
@@ -201,7 +238,7 @@ export function CopilotDock() {
             ))}
             {staff && (
               <p className="text-xs text-faint">
-                Tip: attach a .xlsx / .csv / .txt to bulk-add products, plans or customers.
+                Tip: attach a .xlsx / .csv / .txt to stage a bulk import of products, plans or customers.
               </p>
             )}
           </div>
@@ -213,7 +250,7 @@ export function CopilotDock() {
               className={
                 m.role === "user"
                   ? "inline-block rounded-[6px] px-2.5 py-1.5 text-left"
-                  : "whitespace-pre-wrap min-h-[1em]"
+                  : "whitespace-pre-wrap min-h-[1em] text-left"
               }
               style={m.role === "user" ? { background: "#e9e9e9", maxWidth: "92%" } : undefined}
             >
@@ -241,6 +278,16 @@ export function CopilotDock() {
           <div className="flex items-center gap-2 text-xs text-muted mb-2">
             <Paperclip size={12} />
             <span className="truncate flex-1">{file.name}</span>
+            <select
+              value={entity}
+              onChange={(e) => setEntity(e.target.value as ImportEntity)}
+              className="text-xs border border-line rounded-[4px] px-1 py-0.5 bg-surface"
+              aria-label="Import as"
+            >
+              <option value="product">as products</option>
+              <option value="plan">as plans</option>
+              <option value="customer">as customers</option>
+            </select>
             <button className="hover:text-negative cursor-pointer" onClick={() => setFile(null)}>
               remove
             </button>
@@ -250,13 +297,13 @@ export function CopilotDock() {
           {staff && (
             <label
               className="shrink-0 p-2 rounded-full hover:bg-[#ededed] cursor-pointer"
-              title="Attach .xlsx/.csv/.txt for bulk import"
+              title="Attach .xlsx/.csv/.txt to stage a bulk import"
             >
               <Paperclip size={15} strokeWidth={1.5} />
               <input
                 type="file"
                 className="hidden"
-                accept=".xlsx,.csv,.txt"
+                accept=".xlsx,.xls,.csv,.txt"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
             </label>
