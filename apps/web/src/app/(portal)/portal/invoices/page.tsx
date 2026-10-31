@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { get, post, qs, ApiError } from "@/lib/api";
 import { money, dateShort, dueLabel } from "@/lib/format";
 import { SectionTitle, EmptyState, LoadingRows, StatusPill } from "@/components/ui";
@@ -84,11 +83,7 @@ export default function PortalInvoicesPage() {
                 const balance = inv.total - inv.paidTotal;
                 return (
                   <tr key={inv.id}>
-                    <td>
-                      <Link href={`/invoices/${inv.id}`} className="mono-id text-ink hover:underline">
-                        {inv.number}
-                      </Link>
-                    </td>
+                    <td><span className="mono-id text-ink">{inv.number}</span></td>
                     <td className="text-xs">{inv.periodStart ? `${dateShort(inv.periodStart)} → ${dateShort(inv.periodEnd)}` : "—"}</td>
                     <td className="text-xs">{dateShort(inv.issueDate)}</td>
                     <td className="text-xs">{dueLabel(inv.dueDate)}</td>
