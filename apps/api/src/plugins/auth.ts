@@ -97,8 +97,17 @@ export function requireAuth(req: FastifyRequest): AuthedUser {
   return req.user;
 }
 
-export function requireRole(...roles: User['role'][]): (req: FastifyRequest) => void {
-  return (req) => {
+/** Fastify hook variant: guards a route, requires any authenticated user */
+export const requireAuthHook: (req: FastifyRequest, reply: FastifyReply) => Promise<void> = async (
+  req,
+) => {
+  requireAuth(req);
+};
+
+export function requireRole(
+  ...roles: User['role'][]
+): (req: FastifyRequest, reply: FastifyReply) => Promise<void> {
+  return async (req, _reply) => {
     const user = requireAuth(req);
     if (roles.length > 0 && !roles.includes(user.role)) {
       throw forbidden('Your role does not have access to this resource.');
