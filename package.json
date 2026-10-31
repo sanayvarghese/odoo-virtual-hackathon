@@ -1,0 +1,17 @@
+{
+  "name": "brightloop",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Brightloop - Subscription Management System (plans, subscriptions, recurring billing in one place)",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "db:push": "npm run db:push -w apps/api",
+    "db:views": "npm run db:views -w apps/api",
+    "seed": "npm run seed -w apps/api",
+    "db:create": "node apps/api/scripts/create-db.mjs"
+  }
+}

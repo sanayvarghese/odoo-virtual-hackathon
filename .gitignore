@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+out/
+build/
+coverage/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+uploads/
+tmp/
+*.tsbuildinfo
+.ps.txt.bak
