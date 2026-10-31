@@ -16,7 +16,7 @@ import { env } from '../env.js';
  * Also enforces that staff can never be promoted/demoted here in bulk — one endpoint,
  * audited, admin-only.
  */
-const ARGON_OPTS = { memory: 19_456, timeCost: 2, parallelism: 1 } as const;
+const ARGON_OPTS = { memoryCost: 19456, timeCost: 2, parallelism: 1 } as const;
 
 const createStaffSchema = z.object({
   email: emailSchema,

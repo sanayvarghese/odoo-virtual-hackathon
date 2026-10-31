@@ -53,7 +53,7 @@ if (FRESH) {
   `);
 }
 
-const ARGON = { memory: 19_456, timeCost: 2, parallelism: 1 } as const;
+const ARGON = { memoryCost: 19456, timeCost: 2, parallelism: 1 } as const;
 const passwordHash = await argonHash(env.SEED_PASSWORD, ARGON);
 
 const today = () => new Date().toISOString().slice(0, 10);

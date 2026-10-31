@@ -19,7 +19,7 @@ import {
   SESSION_COOKIE,
 } from '../plugins/auth.js';
 
-const ARGON_OPTS = { memory: 19_456, timeCost: 2, parallelism: 1 } as const;
+const ARGON_OPTS = { memoryCost: 19456, timeCost: 2, parallelism: 1 } as const;
 
 export default async function authRoutes(app: FastifyInstance) {
   /* ------------------------------------------------------------- register */
