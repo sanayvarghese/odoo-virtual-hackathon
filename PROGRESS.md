@@ -95,6 +95,8 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped/won't do · [!] b
 - Built: app shell (open-plane sidebar 256px, no top bar), floating AI copilot dock (SSE via next.config rewrite /api/ai/chat → :4000), LineChart component per direction rules (straight ink line, dashed hover guide, tabular-nums).
 - Auth cluster (Alwin): /login (demo-account one-click fill), /signup (live email-available check + password policy ticks), forgot/reset/verify, /mailbox dev mailbox reader.
 - Dashboard + Reports (Ullas): KPI band (MRR/cash/outstanding/overdue), revenue line chart, outstanding-invoices table, pipeline counts; Reports page with metric tabs (cash / MRR by interval bars / pipeline counts).
+- Completed console + portal surfaces: products CRUD/search/pagination + safe bulk-import preview/commit; plans with lifecycle flags and safe billing run; six-state subscription board + detail/timeline; invoices/print/payment capture; customer directory, staff management, taxes/discounts; customer self-service portal (plan-gated actions and mock checkout).
+- Public landing page (Alwin): app product claim, loop/lifecycle motif, working billing and feature controls, interactive lifecycle slider and pricing index, FAQ and CTA. Source gate passes (`lint.mjs`); `npm run build -w apps/web` passes. The page uses the real app fragments as honest software imagery; inspector still flags the deliberate absence of external photographs/footage, which do not truthfully exist for this local software product.
 - Commits: sanay×3 (scaffold, dashboard typo-fix…) alwin×1 (auth) — pushed to origin/main.
 
 ### Session 1 — [date: 2026-10-31]
