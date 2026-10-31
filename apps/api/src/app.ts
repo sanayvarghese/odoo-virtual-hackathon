@@ -66,6 +66,25 @@ export async function buildApp(): Promise<FastifyInstance> {
       });
       return;
     }
+    // Postgres restrict violation: something still references the row.
+    // drizzle-orm wraps driver errors — walk the cause chain to find the pg code.
+    let root: unknown = e;
+    let pgCode: string | undefined;
+    for (let depth = 0; depth < 4 && root; depth++) {
+      pgCode = (root as { code?: string }).code;
+      if (pgCode) break;
+      root = (root as { cause?: unknown }).cause;
+    }
+    if (pgCode && pgCode.startsWith('23')) {
+      reply.status(409).send({
+        error: {
+          message:
+            'This record is still referenced — a plan or a subscription line points at it. Delete or retire those first; settled invoices are never touched.',
+          code: 'conflict',
+        },
+      });
+      return;
+    }
     const statusCode = e.statusCode ?? 500;
     if (statusCode >= 500) console.error('[unhandled]', err);
     reply.status(statusCode).send({

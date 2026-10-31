@@ -9,11 +9,12 @@ import { AppError, idParamSchema, pageSchema, parseOrThrow } from '../lib/route-
 import { cents, sku } from '../lib/common-validators.js';
 
 const createSchema = z.object({
-  sku: sku,
+  // The UI allows a blank SKU — one is generated server-side (the column is unique).
+  sku: sku.optional(),
   name: z.string().trim().min(2, 'Product name is too short.').max(200),
   kind: z.enum(['software', 'addon', 'service']).default('software'),
   salesPrice: cents('Sales price'),
-  costPrice: cents('Cost price'),
+  costPrice: cents('Cost price').default(0),
   notes: z.string().trim().max(2000).optional(),
   isActive: z.boolean().default(true),
 });
@@ -56,7 +57,21 @@ export default async function productRoutes(app: FastifyInstance) {
     async (req, reply) => {
       req.csrfValidate();
       const data = parseOrThrow(createSchema, req.body);
-      const [row] = await db.insert(products).values(data).returning();
+      if (!data.sku) {
+        // generate a unique, readable SKU from the name (column is unique + not null)
+        const base = data.name.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toUpperCase().slice(0, 24) || 'PRODUCT';
+        let candidate = `${base}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        for (let i = 0; i < 5; i++) {
+          const clash = await db.select({ id: products.id }).from(products).where(eq(products.sku, candidate)).limit(1);
+          if (clash.length === 0) break;
+          candidate = `${base}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        }
+        data.sku = candidate;
+      }
+      const [row] = await db
+        .insert(products)
+        .values({ ...data, sku: data.sku as string })
+        .returning();
       const user = requireAuth(req);
       await db.insert(auditLog).values({
         actorId: user.id,
@@ -102,23 +117,18 @@ export default async function productRoutes(app: FastifyInstance) {
     async (req, reply) => {
       req.csrfValidate();
       const { id } = idParamSchema.parse(req.params);
-      // Soft-delete: billing history keeps referring to the product
-      const [row] = await db
-        .update(products)
-        .set({ isActive: false, updatedAt: new Date() })
-        .where(eq(products.id, id))
-        .returning();
+      const [row] = await db.delete(products).where(eq(products.id, id)).returning();
       if (!row) throw new AppError('not_found', 'Product not found.');
       const user = requireAuth(req);
       await db.insert(auditLog).values({
         actorId: user.id,
-        action: 'product.deactivated',
+        action: 'product.deleted',
         entity: 'product',
         entityId: id,
-        summary: `Deactivated product ${row.name}`,
-        after: row,
+        summary: `Deleted product ${row.name}`,
+        before: row,
       });
-      return reply.status(200).send({ ok: true });
+      return reply.status(200).send({ ok: true, deleted: row.name });
     },
   );
 }

@@ -175,7 +175,7 @@ export default function ProductsPage() {
                       <button
                         className="text-sm text-muted hover:text-negative cursor-pointer"
                         onClick={() => {
-                          if (confirm(`Delete ${p.name}? This cannot be undone.`)) remove.mutate(p.id);
+                          if (confirm(`Delete ${p.name} permanently? Its variants go with it; past invoices keep their lines.`)) remove.mutate(p.id);
                         }}
                       >
                         Delete
