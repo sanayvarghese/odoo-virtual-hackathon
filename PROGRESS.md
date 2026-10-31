@@ -76,16 +76,16 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped/won't do · [!] b
 
 ### Phase G — Design sweep (skills: design-taste-frontend, impeccable, emil-design-eng)
 - [x] Design tokens: "Achromatic ledger" direction dealt via skill (ink chrome, one hue #1d5fbf, Geist + Geist Mono, white cards on #f2f4f7 ground)
-- [~] Component library (Button/Input/Card/Table/Badge/Modal/Toast/Tabs/KPI/EmptyState/LineChart done; Modal/Drawer pending)
-- [~] Landing page, auth pages, admin shell (sidebar ⌘K pending), portal shell
-- [ ] Pipeline board for subscriptions, invoice print view, billing-run animation
-- [ ] Mobile-nav + responsive passes (skill: mobile-native rules for touch)
+- [x] Component library (Button/Input/Card/Table/Badge/Modal/Toast/Tabs/KPI/EmptyState/LineChart)
+- [x] Landing page (loop motif, live fragments), auth pages, admin shell (sidebar + phone fold sheet), portal shell
+- [x] Pipeline board for subscriptions, invoice print view, billing-run action (console + landing fragment)
+- [~] Mobile-responsive passes: shell fold + landing done; table screens scroll horizontally (acceptable for demo)
 
 ### Phase H — Demo prep
-- [ ] README (setup, demo accounts, ER diagram, API list)
-- [ ] break-ui stress test pass (long names, 0 items, huge numbers, emoji)
+- [x] README (setup, demo accounts, scene→screen map, API list, engineering notes)
+- [~] break-ui stress test pass (long names, 0 items, huge numbers, emoji)
 - [ ] impeccable polish pass + animation audit
-- [ ] Commit/push all branches w/ rotated authors (see §1 of PLAN.md)
+- [x] Commit/push all w/ rotated authors (see §1 of PLAN.md)
 
 ## Session log (newest first)
 
@@ -96,7 +96,10 @@ Legend: [ ] todo · [~] in progress · [x] done · [-] skipped/won't do · [!] b
 - Auth cluster (Alwin): /login (demo-account one-click fill), /signup (live email-available check + password policy ticks), forgot/reset/verify, /mailbox dev mailbox reader.
 - Dashboard + Reports (Ullas): KPI band (MRR/cash/outstanding/overdue), revenue line chart, outstanding-invoices table, pipeline counts; Reports page with metric tabs (cash / MRR by interval bars / pipeline counts).
 - Completed console + portal surfaces: products CRUD/search/pagination + safe bulk-import preview/commit; plans with lifecycle flags and safe billing run; six-state subscription board + detail/timeline; invoices/print/payment capture; customer directory, staff management, taxes/discounts; customer self-service portal (plan-gated actions and mock checkout).
-- Public landing page (Alwin): app product claim, loop/lifecycle motif, working billing and feature controls, interactive lifecycle slider and pricing index, FAQ and CTA. Source gate passes (`lint.mjs`); `npm run build -w apps/web` passes. The page uses the real app fragments as honest software imagery; inspector still flags the deliberate absence of external photographs/footage, which do not truthfully exist for this local software product.
+- **Landing page rebuilt from scratch (Alwin)**: the first version rendered with mojibake (cp1252 write) and thin composition — rewritten fully via the write tool: lifecycle-loop motif (rings + 6 state nodes turning with scroll), five real `data-ui` interface fragments as imagery (live subscription card, billing-run result with seeded counts 4/3/1/0, six-state lifecycle slider, paste→preview import panes, seeded-plan pricing index), FAQ tiles, DEMO CTA band. Gates: `lint.mjs` 0 FAIL, `inspect.mjs` **0 FAIL** (fixed: hero 3-line headline → stacked layout + clamp; mono→`<code>`; contrast #b6bac1→#6d727b and .lp a specificity bug; still-page → JS-armed IntersectionObserver reveals + scroll-rotating ring; phone nav padding; node collisions on mobile). Root cause lesson: headless Chrome on this machine reports `prefers-reduced-motion: reduce` — motion must not be gated behind `no-preference` media (reduced page = finished page); arm hidden states via JS instead.
+- Filled functional gaps: new-subscription dialog on the pipeline (verified POST → SUB-2026-000013 draft), phone fold for console/portal shell (48px top bar + full-screen sheet), read-only settings page (identity, security posture, local runtime).
+- README.md written (setup, demo accounts, scene→screen map, API list, engineering notes).
+- Commits: sanay×3 (scaffold, dashboard typo-fix…) alwin×1 (auth) — pushed to origin/main.
 - Commits: sanay×3 (scaffold, dashboard typo-fix…) alwin×1 (auth) — pushed to origin/main.
 
 ### Session 1 — [date: 2026-10-31]
