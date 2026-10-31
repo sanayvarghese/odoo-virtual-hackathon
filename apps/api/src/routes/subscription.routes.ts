@@ -133,6 +133,38 @@ export default async function subscriptionRoutes(app: FastifyInstance) {
     return reply.status(201).send({ subscription: full });
   });
 
+  /* --------------------------------------------------- self-serve subscribe */
+  // Scene: a customer picks a plan in the portal. It becomes a DRAFT on the
+  // staff pipeline — nobody's money moves until staff confirm and activate.
+  const selfSchema = z.object({
+    planId: z.number({ error: 'Plan is required.' }).int().positive(),
+    quantity: quantitySchema.default(1),
+    startDate: isoDate.optional(),
+    autoRenew: z.boolean().optional(),
+    notes: z.string().trim().max(500).optional(),
+  });
+  app.post('/self', { schema: { tags: ['subscriptions'] }, preHandler: requireAuthHook }, async (req, reply) => {
+    req.csrfValidate();
+    const user = requireAuth(req);
+    if (user.role !== 'customer') {
+      throw new AppError('forbidden', 'Use the staff pipeline to create subscriptions for customers.');
+    }
+    const data = parseOrThrow(selfSchema, req.body ?? {});
+    const mine = await db.select({ id: customers.id }).from(customers).where(eq(customers.userId, user.id)).limit(1);
+    if (!mine[0]) throw new AppError('not_found', 'No customer profile is linked to this account.');
+    const id = await svc.createSubscription({
+      customerId: mine[0].id,
+      planId: data.planId,
+      quantity: data.quantity,
+      startDate: data.startDate ?? new Date().toISOString().slice(0, 10),
+      autoRenew: data.autoRenew,
+      notes: data.notes,
+      actorId: user.id,
+    });
+    const full = await svc.subscriptionFull(id);
+    return reply.status(201).send({ subscription: full });
+  });
+
   /* ----------------------------------------------------------- transitions */
   app.post('/:id/transition', { schema: { tags: ['subscriptions'] }, preHandler: requireRole('admin', 'staff') }, async (req) => {
     req.csrfValidate();

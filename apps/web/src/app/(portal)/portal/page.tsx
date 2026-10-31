@@ -123,23 +123,34 @@ function SubCard({ sub, onAction, busy }: { sub: PortalSub; onAction: (to: strin
       </div>
 
       <div className="flex gap-2 mt-5">
-        {actions.includes("paused") && canPause && (
+        {actions.includes("paused") && canPause && sub.status === "active" && (
           <button className="btn btn-outline" disabled={busy} onClick={() => onAction("paused")}>
             Pause
           </button>
         )}
-        {actions.includes("active") && sub.status === "paused" && canPause && (
+        {sub.status === "paused" && canPause && (
           <button className="btn btn-primary" disabled={busy} onClick={() => onAction("active")}>
             Resume
           </button>
         )}
-        {actions.includes("cancelled") && canCancel && (
+        {actions.includes("cancelled") && canCancel && ["active", "paused"].includes(sub.status) && (
           <button className="btn btn-danger" disabled={busy} onClick={() => onAction("cancelled")}>
             Cancel subscription
           </button>
         )}
-        {sub.status !== "active" && sub.status !== "paused" && (
-          <span className="text-xs text-faint self-center">No self-service actions while {sub.status.replace(/_/g, " ")}</span>
+        {["draft", "quotation", "confirmed"].includes(sub.status) && (
+          <span className="text-xs text-faint self-center">
+            {sub.status === "draft"
+              ? "Requested — waiting for our team to confirm."
+              : sub.status === "quotation"
+                ? "A quotation was sent — confirm with us to start."
+                : "Confirmed — it activates on its start date."}
+          </span>
+        )}
+        {["closed", "cancelled"].includes(sub.status) && (
+          <span className="text-xs text-faint self-center">
+            This subscription has ended. Subscribe again from Browse plans.
+          </span>
         )}
       </div>
       {plan && !plan.allowPause && sub.status === "active" && (

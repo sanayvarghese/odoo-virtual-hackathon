@@ -171,13 +171,13 @@ const GST0 = taxRecords['GST 0% (Exempt)']!.id;
 
 /* plans — mix of flags so every scene is demoable */
 const planSeed = [
-  { key: 'suite-m', productId: suite.id, taxes: [GST18], interval: 'monthly', name: 'Brightloop Suite — Monthly', price: 2499000, minQty: 1, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
-  { key: 'suite-y', productId: suite.id, taxes: [GST18], interval: 'yearly', name: 'Brightloop Suite — Yearly', price: 24990000, minQty: 1, autoRenew: true, allowPause: false, allowEarlyCancel: false, autoCloseAtEnd: false },
-  { key: 'crm-m', productId: crm.id, taxes: [GST18], interval: 'monthly', name: 'Brightloop CRM — Monthly', price: 999000, minQty: 3, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
-  { key: 'crm-y', productId: crm.id, taxes: [GST18], interval: 'yearly', name: 'Brightloop CRM — Yearly', price: 9990000, minQty: 1, autoRenew: false, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: true },
-  { key: 'seats-m', productId: seats.id, taxes: [GST12], interval: 'monthly', name: 'Extra Seat Pack — Monthly', price: 199000, minQty: 5, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
-  { key: 'integ-m', productId: integ.id, taxes: [GST0], interval: 'monthly', name: 'Advanced Integrations — Monthly', price: 149000, minQty: 1, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
-] as Array<{ key: string; productId: number; taxes: number[]; interval: IntervalKey; name: string; price: number; minQty: number; autoRenew: boolean; allowPause: boolean; allowEarlyCancel: boolean; autoCloseAtEnd: boolean }>;
+  { key: 'suite-m', productId: suite.id, taxes: [GST18], interval: 'monthly', name: 'Brightloop Suite — Monthly', description: 'The complete Brightloop Suite product with every addon line the workspace offers. Billed monthly with GST 18% applied to each invoice at confirm time.', price: 2499000, minQty: 1, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
+  { key: 'suite-y', productId: suite.id, taxes: [GST18], interval: 'yearly', name: 'Brightloop Suite — Yearly', description: 'The full Suite on annual commitment: one invoice a year, GST 18%. By design this plan cannot be paused or cancelled early.', price: 24990000, minQty: 1, autoRenew: true, allowPause: false, allowEarlyCancel: false, autoCloseAtEnd: false },
+  { key: 'crm-m', productId: crm.id, taxes: [GST18], interval: 'monthly', name: 'Brightloop CRM — Monthly', description: 'The Brightloop CRM product alone, billed monthly with GST 18%. Priced per seat with a minimum of 3 seats.', price: 999000, minQty: 3, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
+  { key: 'crm-y', productId: crm.id, taxes: [GST18], interval: 'yearly', name: 'Brightloop CRM — Yearly', description: 'CRM on an annual cycle with GST 18%. The plan auto-closes when its validity ends and can be paused mid-term.', price: 9990000, minQty: 1, autoRenew: false, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: true },
+  { key: 'seats-m', productId: seats.id, taxes: [GST12], interval: 'monthly', name: 'Extra Seat Pack — Monthly', description: 'Additional seats for an existing subscription, billed monthly with GST 12%. Sold in packs with a minimum of 5 seats.', price: 199000, minQty: 5, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
+  { key: 'integ-m', productId: integ.id, taxes: [GST0], interval: 'monthly', name: 'Advanced Integrations — Monthly', description: 'The Advanced Integrations addon: webhooks, API relay and scheduled exports. Billed monthly, exempt from GST (0%).', price: 149000, minQty: 1, autoRenew: true, allowPause: true, allowEarlyCancel: true, autoCloseAtEnd: false },
+] as Array<{ key: string; productId: number; taxes: number[]; interval: IntervalKey; name: string; description: string; price: number; minQty: number; autoRenew: boolean; allowPause: boolean; allowEarlyCancel: boolean; autoCloseAtEnd: boolean }>;
 
 type PlanRec = (typeof planSeed)[number] & { id: number };
 const planRecords: Record<string, PlanRec> = {};
@@ -192,6 +192,7 @@ for (const p of planSeed) {
     .values({
       productId: p.productId,
       name: p.name,
+      description: p.description,
       interval: p.interval,
       price: p.price,
       minQty: p.minQty,

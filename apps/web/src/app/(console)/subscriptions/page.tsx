@@ -52,7 +52,7 @@ export default function SubscriptionsPage() {
 
   const list = useQuery({
     queryKey: ["subscriptions", { q }],
-    queryFn: () => get<{ items: SubRow[]; total: number }>(`/subscriptions${qs({ q, limit: 300 })}`),
+    queryFn: () => get<{ items: SubRow[]; total: number }>(`/subscriptions${qs({ q, limit: 100 })}`),
   });
 
   const customers = useQuery({
