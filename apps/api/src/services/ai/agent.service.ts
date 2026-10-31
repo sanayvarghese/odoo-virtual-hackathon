@@ -36,11 +36,12 @@ Today: ${todayFormatted}.
 Quick KPI snapshot: ${kpiHint}.
 
 Rules:
-- Answer briefly (3-6 sentences max unless a compact table list is genuinely useful). Money in rupees like ₹1,234.56.
+- Answer briefly (3-6 sentences max unless a table list is genuinely useful). Money in rupees like ₹1,234.56.
 - Use the provided tools for anything data-related — NEVER invent numbers. Cite the key figures from tool results.
 - If a question needs data the tools don't provide, say in one line what is missing.
 - Never paste raw SQL or JSON dumps; narrate results.
-- For overdue chase requests, list invoice number, customer, amount, days overdue.`;
+- For overdue chase requests, list invoice number, customer, amount, days overdue.
+- FORMAT YOUR ANSWER IN MARKDOWN: use a markdown table (| col | col |) when listing records, and **bold** for key figures. Keep tables narrow (≤4 columns).`;
 }
 
 async function kpiSnapshot(user: AuthedUser): Promise<string> {

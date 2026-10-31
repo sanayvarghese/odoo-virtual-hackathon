@@ -44,7 +44,7 @@ npm run dev -w apps/web            # Web on http://localhost:3000
 | Staff    | `staff@brightloop.dev`    | Daily operations, no staff/tax admin            |
 | Customer | `customer@brightloop.dev` | Their own portal: subscriptions, invoices, plans |
 
-Emails (verification, password reset, staff invites) land in the **dev mailbox** at `/mailbox` — this demo sends no SMTP.
+Emails (verification, password reset, staff invites) are **real when SMTP is configured** — see `apps/api/.env.example` for the Gmail / Brevo recipe (Nodemailer over SMTP, env-gated). Without SMTP they land in the **dev mailbox** at `/mailbox`.
 
 ## What to demo (the 5 scenes of the problem statement, mapped)
 

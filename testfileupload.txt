@@ -1,6 +1,7 @@
 Brightloop bulk-import test data (products)
-Upload this file in the AI copilot dock (staff/admin) or in Products > Bulk import.
-Nothing is committed from the chat — review the staged rows, then press Commit.
+Upload this file in the AI copilot dock (staff/admin), or paste the rows below into the chat,
+or use Products > Bulk import. The rows appear as a review table in the chat with a
+"Commit 8 products" button — pressing it writes them and opens the Products page.
 
 name, price, kind, notes
 GraphQL Booster, 1299, addon, Executes GraphQL queries in batch

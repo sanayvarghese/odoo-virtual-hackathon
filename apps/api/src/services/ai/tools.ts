@@ -283,6 +283,21 @@ export const TOOLS: ToolDef[] = [
       };
     },
   },
+  {
+    name: 'go_to_page',
+    description:
+      'Client-side action: send the user to a Brightloop screen. Use when the user asks to open/show/take them somewhere. Page ids: dashboard, subscriptions, invoices, payments, products, plans, customers, staff, taxes, reports, settings, mailbox, portal (their own portal).',
+    roles: [],
+    parameters: {
+      type: 'object',
+      properties: { page: { type: 'string' } },
+      required: ['page'],
+    },
+    // No handler execution happens here — runTool treats CLIENT_TOOLS specially.
+    async handler() {
+      return { ok: true, data: { client: true } };
+    },
+  },
 ];
 
 /** Only expose tools the session user's role may use */

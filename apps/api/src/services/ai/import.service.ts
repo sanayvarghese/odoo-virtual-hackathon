@@ -111,9 +111,27 @@ export function parseWorkbook(buffer: Buffer, filename: string): ParsedSheet {
 
 function normalizeSheet(arr: unknown[][]): ParsedSheet {
   if (arr.length === 0) throw new AppError('validation_error', 'The file is empty.');
-  const headers = (arr[0] ?? []).map((h) => String(h ?? '').trim());
+  // Real spreadsheets often carry prose before the table (instructions, titles).
+  // Find the header line: the first row within the first 15 whose cells match
+  // at least two known field aliases. Everything above it is dropped.
+  const allAliases = new Set(
+    Object.values(ENTITY_SPECS)
+      .flat()
+      .flatMap((f) => f.aliases),
+  );
+  const score = (row: unknown[]) =>
+    row.filter((c) => allAliases.has(String(c ?? '').trim().toLowerCase())).length;
+
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(15, arr.length); i++) {
+    if (score(arr[i] ?? []) >= 2) {
+      headerIdx = i;
+      break;
+    }
+  }
+  const headers = (arr[headerIdx] ?? []).map((h) => String(h ?? '').trim());
   if (headers.filter(Boolean).length === 0) throw new AppError('validation_error', 'No header row found.');
-  const rows = arr.slice(1, 5001).map((r) => (r as unknown[]).map((c) => String(c ?? '').trim()));
+  const rows = arr.slice(headerIdx + 1, 5001).map((r) => (r as unknown[]).map((c) => String(c ?? '').trim()));
   return { headers, rows };
 }
 
@@ -159,10 +177,29 @@ export function parseCSV(text: string, sep: string): string[][] {
   return out;
 }
 
-/** tabular text (paste from spreadsheet): tab > comma > 2+ spaces */
+/** tabular text (paste from spreadsheet): tab > comma > 2+ spaces.
+ *  Lines starting with # or // are treated as comments and dropped, and the
+ *  table may start after prose — the header row is located by content. */
 export function parseText(text: string): ParsedSheet {
-  const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim().length > 0).slice(0, 5001);
-  if (lines.length === 0) throw new AppError('validation_error', 'No content provided.');
+  const all = text.replace(/\r/g, '').split('\n').filter((l) => {
+    const t = l.trim();
+    return t.length > 0 && !t.startsWith('#') && !t.startsWith('//');
+  }).slice(0, 5001);
+  if (all.length === 0) throw new AppError('validation_error', 'No content provided.');
+
+  // locate a header-like line (≥2 comma cells that match known aliases)
+  const allAliases = new Set(
+    Object.values(ENTITY_SPECS)
+      .flat()
+      .flatMap((f) => f.aliases),
+  );
+  const headerLike = (l: string) => {
+    const cells = l.split(/[,;\t]/).map((c) => c.trim().toLowerCase());
+    return cells.filter((c) => allAliases.has(c)).length >= 2;
+  };
+  const start = all.findIndex(headerLike);
+  const lines = start >= 0 ? all.slice(start) : all;
+
   const first = lines[0]!;
   let arr: string[][];
   if (first.includes('\t')) {
