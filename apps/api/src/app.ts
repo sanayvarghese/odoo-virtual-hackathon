@@ -31,7 +31,12 @@ import devRoutes from './routes/dev.routes.js';
 import { healthRoute } from './routes/health.routes.js';
 
 export async function buildApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false, trustProxy: true });
+  const app = Fastify({
+    logger: false,
+    trustProxy: true,
+    ignoreTrailingSlash: true, // /products and /products/ behave identically
+    ignoreDuplicateSlashes: true,
+  });
 
   app.register(cors, { origin: corsOrigins, credentials: true });
   app.register(cookie, { secret: undefined, parseOptions: {} });
@@ -92,27 +97,28 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   authDecorators(app);
 
-  // every route module mounts under /api/v1 (plugin prefix encapsulation)
-  for (const plugin of [
-    healthRoute,
-    authRoutes,
-    productRoutes,
-    variantRoutes,
-    planRoutes,
-    taxRoutes,
-    discountRoutes,
-    customerRoutes,
-    staffRoutes,
-    quoteTemplateRoutes,
-    subscriptionRoutes,
-    billingRoutes,
-    invoiceRoutes,
-    paymentRoutes,
-    reportRoutes,
-    aiRoutes,
-    devRoutes,
-  ]) {
-    app.register(plugin, { prefix: '/api/v1' });
+  // every route module mounts under its own namespace under /api/v1
+  const modules: Array<[plugin: unknown, prefix: string]> = [
+    [healthRoute, ''],
+    [authRoutes, '/auth'],
+    [productRoutes, '/products'],
+    [variantRoutes, '/products'],
+    [planRoutes, '/plans'],
+    [taxRoutes, '/taxes'],
+    [discountRoutes, '/discounts'],
+    [customerRoutes, '/customers'],
+    [staffRoutes, '/staff'],
+    [quoteTemplateRoutes, '/quote-templates'],
+    [subscriptionRoutes, '/subscriptions'],
+    [billingRoutes, '/billing'],
+    [invoiceRoutes, '/invoices'],
+    [paymentRoutes, '/payments'],
+    [reportRoutes, '/reports'],
+    [aiRoutes, '/ai'],
+    [devRoutes, '/dev'],
+  ];
+  for (const [plugin, prefix] of modules) {
+    app.register(plugin as never, { prefix: `/api/v1${prefix}` });
   }
 
   return app;

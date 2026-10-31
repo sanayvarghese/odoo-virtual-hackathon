@@ -24,7 +24,7 @@ const ARGON_OPTS = { memory: 19_456, timeCost: 2, parallelism: 1 } as const;
 export default async function authRoutes(app: FastifyInstance) {
   /* ------------------------------------------------------------- register */
   app.post(
-    '/auth/register',
+    '/register',
     {
       config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
       schema: { tags: ['auth'] },
@@ -75,7 +75,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   /* ----------------------------------------------------------------- login */
   app.post(
-    '/auth/login',
+    '/login',
     {
       config: { rateLimit: { max: 8, timeWindow: '1 minute' } },
       schema: { tags: ['auth'] },
@@ -103,7 +103,7 @@ export default async function authRoutes(app: FastifyInstance) {
   );
 
   /* ---------------------------------------------------------------- logout */
-  app.post('/auth/logout', { schema: { tags: ['auth'] } }, async (req, reply) => {
+  app.post('/logout', { schema: { tags: ['auth'] } }, async (req, reply) => {
     req.csrfValidate();
     const token = req.cookies?.[SESSION_COOKIE];
     await destroySession(token);
@@ -112,7 +112,7 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   /* -------------------------------------------------------------------- me */
-  app.get('/auth/me', { schema: { tags: ['auth'] } }, async (req) => {
+  app.get('/me', { schema: { tags: ['auth'] } }, async (req) => {
     const user = requireAuth(req);
     let customer = null;
     if (user.role === 'customer') {
@@ -123,13 +123,13 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   /* ------------------------------------------------------------ get csrf */
-  app.get('/auth/csrf', { schema: { tags: ['auth'] } }, async (req, reply) => {
+  app.get('/csrf', { schema: { tags: ['auth'] } }, async (req, reply) => {
     return reply.send({ csrf: req.cookies?.['bl_csrf'] ?? null });
   });
 
   /* --------------------------------------------------------------- forgot */
   app.post(
-    '/auth/forgot',
+    '/forgot',
     {
       config: { rateLimit: { max: 5, timeWindow: '10 minutes' } },
       schema: { tags: ['auth'] },
@@ -155,7 +155,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   /* ---------------------------------------------------------------- reset */
   app.post(
-    '/auth/reset',
+    '/reset',
     {
       config: { rateLimit: { max: 10, timeWindow: '10 minutes' } },
       schema: { tags: ['auth'] },
@@ -196,7 +196,7 @@ export default async function authRoutes(app: FastifyInstance) {
   );
 
   /* --------------------------------------------------------------- verify */
-  app.post('/auth/verify', { schema: { tags: ['auth'] } }, async (req) => {
+  app.post('/verify', { schema: { tags: ['auth'] } }, async (req) => {
     const parsed = verifySchema.safeParse(req.body);
     if (!parsed.success) throw ZodFail(parsed.error);
     const rows = await db
@@ -224,7 +224,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
   /* ----------------------------------------------------------------- demo */
   // quick check of email/password availability for live inline validation on the signup form
-  app.get('/auth/email-available', { schema: { tags: ['auth'] } }, async (req) => {
+  app.get('/email-available', { schema: { tags: ['auth'] } }, async (req) => {
     const q = req.query as { email?: string };
     const parsed = emailSchema.safeParse(q.email ?? '');
     if (!parsed.success) return { available: false };
