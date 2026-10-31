@@ -230,6 +230,59 @@ export const TOOLS: ToolDef[] = [
       return { ok: true, data: { seats, budgetPerMonthRupees: budget, options: fits, checked: rows.length } };
     },
   },
+  {
+    name: 'draft_quote',
+    description:
+      'Staff tool (writes): draft a subscription for a customer from a plan — a quotation the team can confirm. Give the customer company name (or part of it), the plan name (or part), and seats.',
+    roles: ['admin', 'staff'],
+    parameters: {
+      type: 'object',
+      properties: {
+        company: { type: 'string' },
+        planName: { type: 'string' },
+        quantity: { type: 'integer' },
+      },
+      required: ['company', 'planName'],
+    },
+    write: true,
+    async handler(user, args) {
+      const company = String(args.company ?? '').trim();
+      const planName = String(args.planName ?? '').trim();
+      if (!company || !planName) return { ok: false, error: 'company and planName are required.' };
+      const c = await pool.query<{ id: number; company_name: string }>(
+        'SELECT id, company_name FROM customers WHERE company_name ILIKE $1 ORDER BY id LIMIT 1',
+        [`%${company}%`],
+      );
+      if (!c.rows[0]) return { ok: false, error: `No customer matches "${company}".` };
+      const p = await pool.query<{ id: number; name: string; min_qty: number }>(
+        'SELECT id, name, min_qty FROM plans WHERE name ILIKE $1 AND is_active ORDER BY id LIMIT 1',
+        [`%${planName}%`],
+      );
+      if (!p.rows[0]) return { ok: false, error: `No active plan matches "${planName}".` };
+      const qty = Math.max(p.rows[0].min_qty, Math.max(1, Number(args.quantity) || 1));
+      const svc = await import('../../services/subscription.service.js');
+      const id = await svc.createSubscription({
+        customerId: c.rows[0].id,
+        planId: p.rows[0].id,
+        quantity: qty,
+        startDate: new Date().toISOString().slice(0, 10),
+        actorId: user.id,
+        notes: `Quotation drafted by the copilot (${user.email})`,
+      });
+      const full = await svc.subscriptionFull(id);
+      return {
+        ok: true,
+        data: {
+          number: full.number,
+          status: full.status,
+          customer: full.customer?.companyName ?? c.rows[0].company_name,
+          plan: full.plan?.name ?? p.rows[0].name,
+          quantity: full.quantity,
+          message: 'Draft created. Find it under Subscriptions to send and confirm.',
+        },
+      };
+    },
+  },
 ];
 
 /** Only expose tools the session user's role may use */

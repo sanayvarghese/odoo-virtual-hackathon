@@ -1,0 +1,13 @@
+Brightloop bulk-import test data (products)
+Upload this file in the AI copilot dock (staff/admin) or in Products > Bulk import.
+Nothing is committed from the chat — review the staged rows, then press Commit.
+
+name, price, kind, notes
+GraphQL Booster, 1299, addon, Executes GraphQL queries in batch
+Email Relay Pro, 499, service, Transactional email relay
+Data Vault 100GB, 1599, addon, Encrypted object storage
+Webhook Mesh, 899, service, Fan-out webhook delivery
+Audit Log Stream, 649, addon, Immutable audit trail export
+Priority Support, 2499, service, 1-hour response SLA
+Metric Pipeline, 1199, addon, Usage metering and rollups
+SSO Connector, 1799, addon, SAML and OIDC single sign-on
