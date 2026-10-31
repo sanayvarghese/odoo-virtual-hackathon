@@ -204,7 +204,7 @@
 .lp-inv-lines > div { display: flex; justify-content: space-between; gap: 14px; padding: 10px 2px; font-size: 14px; border-bottom: 1px solid #f1f2f4; } /* taste-skill-ignore: ledger rows */
 .lp-inv-lines b { font-variant-numeric: tabular-nums; font-weight: 500; }
 .lp-disc { color: #2e7d32; }
-.lp-inv-total { display: flex; justify-content: space-between; padding: 12px 2px 0; font-size: 16px; font-weight: 600; }
+.lp-abbr { cursor: help; border-bottom: 1px dotted #8a8a8a; }.lp-inv-total { display: flex; justify-content: space-between; padding: 12px 2px 0; font-size: 16px; font-weight: 600; }
 .lp-inv-total b { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ---------- ai ---------- */

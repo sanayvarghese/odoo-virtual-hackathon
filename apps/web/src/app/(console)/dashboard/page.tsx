@@ -6,6 +6,7 @@ import { get } from "@/lib/api";
 import { money, dateShort, dueLabel } from "@/lib/format";
 import { LineChart, type SeriesPoint } from "@/components/line-chart";
 import { SectionTitle, LoadingRows, Delta } from "@/components/ui";
+import { Abbr } from "@/components/abbr";
 import { isStaff, useAuth } from "@/lib/auth-context";
 
 interface Summary {
@@ -66,7 +67,7 @@ export default function DashboardPage() {
 
       {/* balances first — one container split by hairlines into equal columns */}
       <div className="card grid grid-cols-4 divide-x divide-line">
-        <BalanceCell label="MRR" value={money(data.mrrCents)} note="recurring, normalized" />
+        <BalanceCell label={<Abbr term="MRR" full="Monthly Recurring Revenue — every active subscription normalized to a monthly value" />} value={money(data.mrrCents)} note="recurring, normalized" />
         <BalanceCell label="Cash collected" value={money(data.revenuePaidCents)} note="all payments" />
         <BalanceCell
           label="Outstanding"
@@ -184,7 +185,7 @@ function BalanceCell({
   note,
   zero,
 }: {
-  label: string;
+  label: React.ReactNode;
   value: string;
   note: string;
   zero?: boolean;

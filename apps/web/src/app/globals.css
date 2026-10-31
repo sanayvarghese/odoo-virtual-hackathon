@@ -238,6 +238,46 @@ html {
 .card {
   overflow-x: auto; /* wide ledger tables scroll instead of pushing the page */
 }
+
+/* ---- abbreviation tooltip (MRR, GST, SKU…) ---- */
+.abbr {
+  position: relative;
+  cursor: help;
+  border-bottom: 1px dotted var(--color-control, #d4d4d4);
+}
+.abbr-tip {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(2px);
+  background: #141414;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  padding: 7px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 140ms ease, transform 140ms ease;
+  pointer-events: none;
+  z-index: 60;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+.abbr-tip b {
+  font-weight: 700;
+}
+.abbr:hover .abbr-tip,
+.abbr:focus .abbr-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+.abbr:focus-visible {
+  outline: 2px solid var(--color-ledger, #1d5fbf);
+  outline-offset: 2px;
+}
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

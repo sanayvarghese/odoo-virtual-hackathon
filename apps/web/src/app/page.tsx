@@ -139,7 +139,7 @@ export default function HomePage() {
           </div>
           <div className="lp-shot-kpis">
             <div>
-              <span>MRR</span>
+              <span><abbr className="lp-abbr" title="MRR — Monthly Recurring Revenue: every active subscription normalized to a month">MRR</abbr></span>
               <strong>₹1,11,761.67</strong>
             </div>
             <div>

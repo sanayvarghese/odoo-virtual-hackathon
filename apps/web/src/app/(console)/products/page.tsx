@@ -6,6 +6,7 @@ import { Plus, Search } from "lucide-react";
 import { get, post, patch, del, qs, ApiError } from "@/lib/api";
 import { money } from "@/lib/format";
 import { SectionTitle, EmptyState, LoadingRows, StatusPill } from "@/components/ui";
+import { Abbr } from "@/components/abbr";
 import { Modal } from "@/components/modal";
 import { ImportWizard } from "@/components/import-wizard";
 import { useToast } from "@/components/toast";
@@ -144,7 +145,7 @@ export default function ProductsPage() {
           <table className="btable">
             <thead>
               <tr>
-                <th>SKU</th>
+                <th><Abbr term="SKU" full="Stock Keeping Unit — the catalog code that plans and lines reference" /></th>
                 <th>Name</th>
                 <th>Kind</th>
                 <th className="num">Sales price</th>

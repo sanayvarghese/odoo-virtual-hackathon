@@ -6,6 +6,7 @@ import { get } from "@/lib/api";
 import { money, monthShort } from "@/lib/format";
 import { LineChart, type SeriesPoint } from "@/components/line-chart";
 import { SectionTitle, LoadingRows } from "@/components/ui";
+import { Abbr } from "@/components/abbr";
 
 type Metric = "revenue" | "mrr" | "subscriptions";
 
@@ -49,9 +50,9 @@ export default function ReportsPage() {
     [revenue.data],
   );
 
-  const tabs: { id: Metric; label: string }[] = [
+  const tabs: { id: Metric; label: string; abbr?: string }[] = [
     { id: "revenue", label: "Cash collected" },
-    { id: "mrr", label: "MRR by interval" },
+    { id: "mrr", label: "MRR by interval", abbr: "Monthly Recurring Revenue — active subscriptions normalized to a monthly value" },
     { id: "subscriptions", label: "Pipeline" },
   ];
 
@@ -69,7 +70,8 @@ export default function ReportsPage() {
                 onClick={() => setMetric(t.id)}
                 className={`text-sm cursor-pointer pb-3 ${active ? "text-ink font-medium" : "text-muted hover:text-ink"}`}
               >
-                {t.label}
+                {t.abbr ? <Abbr term={t.label.split(" ")[0]!} full={t.abbr} /> : t.label}
+                {t.abbr ? ` ${t.label.split(" ").slice(1).join(" ")}` : ""}
               </button>
               {active && (
                 <span
