@@ -102,7 +102,7 @@ export function AppShell({ kind, children }: { kind: "console" | "portal"; child
     return <div className="min-h-screen" />;
   }
   if (!user || !role) {
-    router.replace("/login");
+    router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     return null;
   }
   if (kind === "console" && !isStaff(user.role)) {

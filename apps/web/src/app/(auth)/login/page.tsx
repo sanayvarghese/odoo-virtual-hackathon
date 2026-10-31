@@ -1,20 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { post, ApiError } from "@/lib/api";
 import { useAuth, type SessionUser } from "@/lib/auth-context";
 import { useToast } from "@/components/toast";
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { refresh, user, loading } = useAuth();
   const { toast } = useToast();
+  const params = useSearchParams();
+  const next = params.get("next") ?? "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Already signed in? Straight to your home — the form is only for signed-out visitors.
+  useEffect(() => {
+    if (!loading && user) router.replace(next || (user.role === "customer" ? "/portal" : "/dashboard"));
+  }, [loading, user, next, router]);
+
+  function dest(role: string) {
+    return next && next.startsWith("/") ? next : role === "customer" ? "/portal" : "/dashboard";
+  }
 
   async function submit() {
     if (busy) return;
@@ -24,8 +35,7 @@ export default function LoginPage() {
       const res = await post<{ user: SessionUser }>("/auth/login", { email, password });
       await refresh();
       toast("success", "Signed in");
-      // Route by role — staff land in the console, customers in their portal.
-      router.replace(res.user.role === "customer" ? "/portal" : "/dashboard");
+      router.replace(dest(res.user.role));
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Could not sign in";
       setError(msg);
@@ -122,5 +132,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginInner />
+    </Suspense>
   );
 }

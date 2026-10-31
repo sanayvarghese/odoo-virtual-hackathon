@@ -16,7 +16,7 @@ const POLICY = [
 
 export default function SignupPage() {
   const router = useRouter();
-  const { refresh } = useAuth();
+  const { refresh, user, loading } = useAuth();
   const { toast } = useToast();
   const [form, setForm] = useState({
     name: "",
@@ -34,6 +34,11 @@ export default function SignupPage() {
     setForm({ ...form, [k]: e.target.value });
 
   const available = POLICY.every((p) => p.test(form.password));
+
+  // Already signed in? Straight to the portal.
+  useEffect(() => {
+    if (!loading && user) router.replace("/portal");
+  }, [loading, user, router]);
 
   // live email availability — server-backed, debounced
   useEffect(() => {

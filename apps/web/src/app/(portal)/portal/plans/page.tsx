@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
 import { get, post, ApiError } from "@/lib/api";
 import { money, dateShort } from "@/lib/format";
 import { SectionTitle, EmptyState, LoadingRows } from "@/components/ui";
@@ -25,6 +26,15 @@ interface Plan {
 }
 
 export default function PortalPlansPage() {
+  return (
+    <Suspense>
+      <PlansInner />
+    </Suspense>
+  );
+}
+
+function PlansInner() {
+  const params = useSearchParams();
   const [subscribing, setSubscribing] = useState<Plan | null>(null);
   const [form, setForm] = useState({ quantity: "", startDate: new Date().toISOString().slice(0, 10), notes: "", autoRenew: true });
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +45,16 @@ export default function PortalPlansPage() {
     queryKey: ["available-plans"],
     queryFn: () => get<{ items: Plan[] }>("/plans?availableOnly=true"),
   });
+
+  // Deep link from the landing page: /portal/plans?subscribe=<planId> opens the
+  // subscribe dialog directly so the "choose → sign in → checkout" flow continues.
+  useEffect(() => {
+    const want = Number(params.get("subscribe"));
+    if (!want || !plans.data) return;
+    const plan = plans.data.items.find((p) => p.id === want);
+    if (plan) openSubscribe(plan);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, plans.data]);
 
   const subscribe = useMutation({
     mutationFn: () =>

@@ -3,221 +3,100 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LoopMark } from "@/components/app-shell";
+import { get } from "@/lib/api";
 import "./landing.css";
 
 /**
- * Brightloop public page — "one motif" direction: the subscription lifecycle
- * loop is the page's single shape. Every figure on it comes from the seeded
- * demo workspace; interface fragments (data-ui) are the page's imagery.
+ * Brightloop public page — rebuilt fresh: calm editorial layout, no scroll
+ * gimmicks. Plans are LIVE from the public catalogue (GET /plans/public, the
+ * admin's real data); "Subscribe" continues into login → portal checkout.
  */
 
+interface PublicPlan {
+  id: number;
+  name: string;
+  description: string | null;
+  interval: string;
+  price: number; // cents per period
+  minQty: number;
+  autoRenew: boolean;
+  allowPause: boolean;
+  allowEarlyCancel: boolean;
+  autoCloseAtEnd: boolean;
+  validTo: string | null;
+  productName: string;
+  productSku: string;
+}
+
+const INTERVAL_LABEL: Record<string, string> = {
+  daily: "day",
+  weekly: "week",
+  monthly: "month",
+  yearly: "year",
+};
+
 const STATES = [
-  {
-    id: "draft",
-    name: "Draft",
-    clause: "It starts as a draft.",
-    copy: "Built from a plan, a product and a quantity. Nothing bills until someone moves it.",
-    next: "—",
-    event: "Created from Brightloop CRM Monthly",
-    actions: ["Send as quotation", "Discard"],
-  },
-  {
-    id: "quotation",
-    name: "Quotation",
-    clause: "Sent as a quotation.",
-    copy: "An accountable offer the customer can read, still editable until it is confirmed.",
-    next: "—",
-    event: "Quotation SUB-2026-000001 sent to Sunrise Retail",
-    actions: ["Confirm", "Cancel"],
-  },
-  {
-    id: "confirmed",
-    name: "Confirmed",
-    clause: "Confirmed locks the deal.",
-    copy: "GST and discounts snapshot into the invoice at confirm time. History is never rewritten.",
-    next: "1 Nov 2026",
-    event: "Taxes frozen: GST 18 percent, WELCOME10 applied",
-    actions: ["Activate"],
-  },
-  {
-    id: "active",
-    name: "Active",
-    clause: "Billed once per period.",
-    copy: "The (subscription, period) key makes double billing impossible. Reruns skip what exists.",
-    next: "26 Nov 2026",
-    event: "Invoice INV-2026-000001 paid ₹26,539.38",
-    actions: ["Pause", "Renew", "Close"],
-  },
-  {
-    id: "paused",
-    name: "Paused",
-    clause: "Paused, not lost.",
-    copy: "Only where the plan allows it: the flag on the plan decides, not the mood of the day.",
-    next: "held",
-    event: "Billing held; history and MRR stay intact",
-    actions: ["Resume", "Close"],
-  },
-  {
-    id: "closed",
-    name: "Closed",
-    clause: "Closed ends the loop.",
-    copy: "At expiry by rule, or early with a reason. Every step lands in the event timeline.",
-    next: "—",
-    event: "Closed at period end · final invoice archived",
-    actions: [],
-  },
-];
-
-const FEATURES = [
-  {
-    on: "Nobody types invoices by hand.",
-    consequence: "One billing pass found every subscription due today and drafted their invoices in a single transaction. Running it twice is safe: the period key says no.",
-  },
-  {
-    on: "Plans set the rules.",
-    consequence: "Pause, early cancel, auto-renew and auto-close live on each plan. The portal reads the flags before showing an action, and the server checks them again.",
-  },
-  {
-    on: "Tax freezes at confirm.",
-    consequence: "GST 18 / 12 / 0% and the discount codes snapshot onto the invoice lines when an invoice is confirmed. Editing a rule later never rewrites issued history.",
-  },
-  {
-    on: "Ask your data, locally.",
-    consequence: "The copilot streams from a local Ollama model with role-scoped tools: overdue lists, KPIs, plan advice. No keys, no uploads, no cloud.",
-  },
-];
-
-const PLANS = [
-  {
-    name: "Suite",
-    cadence: "Monthly",
-    price: "₹24,990",
-    period: "/month",
-    includes: "The full workspace: products, plans, subscriptions, invoices and payments. Billed with GST 18%, minimum one seat.",
-    flags: ["auto-renews", "pausable", "early-cancellable"],
-    cta: "Start with Suite",
-  },
-  {
-    name: "Suite",
-    cadence: "Yearly",
-    price: "₹2,49,900",
-    period: "/year",
-    includes: "The same workspace, one invoice a year. Commitment pricing: no pause, no early cancel, by design.",
-    flags: ["auto-renews", "no pause", "no early cancel"],
-    cta: "Commit to a year",
-  },
-  {
-    name: "CRM",
-    cadence: "Monthly",
-    price: "₹9,990",
-    period: "/month",
-    includes: "The CRM product alone, GST 18%, minimum three seats. A smaller loop to start with.",
-    flags: ["auto-renews", "pausable", "min 3 seats"],
-    cta: "Start with CRM",
-  },
-  {
-    name: "Seat Pack",
-    cadence: "Monthly",
-    price: "₹1,990",
-    period: "/month",
-    includes: "Extra seats for an existing subscription, GST 12%, minimum five seats. The add-on that scales a team.",
-    flags: ["auto-renews", "pausable", "min 5 seats"],
-    cta: "Add seats",
-  },
-];
-
-const FAQ = [
-  [
-    "Can a billing run create duplicate invoices?",
-    "No. Billing records are unique per subscription and period. Re-running the pass skips anything already billed and reports what it skipped.",
-  ],
-  [
-    "What happens to tax and discounts?",
-    "They are calculated when an invoice is confirmed, then stored as snapshots beside the lines. Changing a rule later never rewrites issued history.",
-  ],
-  [
-    "Can customers pause their own subscription?",
-    "Only if the plan allows it. The portal reads the plan's flags before offering pause, resume or early cancel. The server enforces it again.",
-  ],
-  [
-    "Where does the AI copilot run?",
-    "On your machine. It is a local Ollama model streaming over SSE, with tools scoped to the signed-in role. Admins see more than customers.",
-  ],
-  [
-    "Can we import our existing spreadsheet?",
-    "Upload .xlsx or .csv, or paste rows. Headers are mapped locally, every row is previewed, and only rows you approve are committed.",
-  ],
-  [
-    "How do I see all of this working?",
-    "Open the demo and sign in as admin@brightloop.dev, staff@brightloop.dev or customer@brightloop.dev, password Bright@2025.",
-  ],
+  ["Draft", "Built from a plan, a product and a quantity. Nothing bills yet."],
+  ["Quotation", "An accountable offer the customer can read, still editable."],
+  ["Confirmed", "GST and discounts snapshot onto the invoice. History is locked."],
+  ["Active", "Billed exactly once per period. Pause or renew by plan rules."],
+  ["Paused", "Billing held where the plan allows it. History and MRR stay put."],
+  ["Closed", "Ends at expiry or early by rule, with every step in the timeline."],
 ];
 
 export default function HomePage() {
-  const [runState, setRunState] = useState<"idle" | "running" | "done">("idle");
-  const [stage, setStage] = useState(3);
-  const [selected, setSelected] = useState(0);
+  const [plans, setPlans] = useState<PublicPlan[] | null>(null);
+  const [planError, setPlanError] = useState(false);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
-  function runBilling() {
-    if (runState !== "idle") return;
-    setRunState("running");
-    setTimeout(() => setRunState("done"), 900);
-  }
-
-  const s = STATES[stage]!;
-  const plan = PLANS[selected]!;
-
-  // Reveal-on-scroll: armed only once JS is running (no-JS visitors and the
-  // reduced page always see the finished content), transform/opacity only.
-  // A failsafe reveals everything after 2.5s — no state can leave blank space.
+  // Reveal-on-scroll: sections render visible; when one first enters the
+  // viewport, JS animates it in with inline styles (transform/opacity). This
+  // is the motion source that works even when the OS forces reduced motion
+  // (CSS animations are blocked there); under reduce it degrades to a quick
+  // opacity ease. The reduced page still ends fully visible.
   useEffect(() => {
-    const root = document.querySelector(".lp");
-    if (!root) return;
-    root.classList.add("lp-armed");
-    const els = Array.from(root.querySelectorAll(".lp-reveal"));
-    const revealAll = () => els.forEach((el) => el.classList.add("is-inview"));
-    if (!("IntersectionObserver" in window)) {
-      revealAll();
-      return;
-    }
+    const els = Array.from(document.querySelectorAll<HTMLElement>(".lp-reveal"));
+    if (!("IntersectionObserver" in window)) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add("is-inview");
-            io.unobserve(e.target);
-          }
+          if (!e.isIntersecting) continue;
+          const el = e.target as HTMLElement;
+          io.unobserve(el);
+          if (el.dataset.revealed) continue;
+          el.dataset.revealed = "1";
+          el.style.transition = reduce ? "opacity 200ms ease" : "opacity 560ms ease, transform 560ms ease";
+          el.style.opacity = "0";
+          if (!reduce) el.style.transform = "translateY(18px)";
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => {
+              el.style.opacity = "1";
+              el.style.transform = "none";
+            }),
+          );
         }
       },
-      { threshold: 0.1 },
+      { threshold: 0.08 },
     );
     els.forEach((el) => io.observe(el));
-    const failsafe = setTimeout(revealAll, 2500);
-    return () => {
-      io.disconnect();
-      clearTimeout(failsafe);
-    };
+    return () => io.disconnect();
   }, []);
 
-  // The signature move: the hero loop turns as you scroll (independent
-  // `rotate` so it composes with the CSS spin), rAF-throttled.
+  // live catalogue + a quiet auth probe so Subscribe knows where to send you
   useEffect(() => {
-    const ring = document.querySelector<HTMLElement>(".lp-ring-outer");
-    if (!ring) return;
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        ring.style.rotate = `${(window.scrollY * 0.06).toFixed(1)}deg`;
-      });
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(raf);
-    };
+    get<{ items: PublicPlan[] }>("/plans/public")
+      .then((r) => setPlans(r.items))
+      .catch(() => setPlanError(true));
+    get("/auth/me")
+      .then(() => setSignedIn(true))
+      .catch(() => setSignedIn(false));
   }, []);
+
+  function subscribeHref(plan: PublicPlan): string {
+    const target = `/portal/plans?subscribe=${plan.id}`;
+    return signedIn ? target : `/login?next=${encodeURIComponent(target)}`;
+  }
 
   return (
     <main className="lp">
@@ -226,261 +105,230 @@ export default function HomePage() {
           <LoopMark size={22} /> Brightloop
         </Link>
         <nav className="lp-navlinks" aria-label="Page sections">
-          <a href="#billing">Billing</a>
           <a href="#lifecycle">Lifecycle</a>
           <a href="#plans">Plans</a>
+          <a href="#billing">Billing</a>
           <Link href="/login" className="lp-nav-signin">Sign in</Link>
         </nav>
       </header>
 
-      {/* ------------------------------------------------ hero: the loop */}
+      {/* ------------------------------------------------------ hero */}
       <section className="lp-hero">
         <div className="lp-hero-copy">
           <h1 id="lp-title">
-            <span>Recurring revenue,</span> <span>in one loop.</span>
+            <span>Subscriptions,</span> <span>billed on time.</span>
           </h1>
           <p>
-            Brightloop keeps plans, lifecycle rules, invoices and payments in one auditable place. And the AI runs on your own machine.
+            Brightloop keeps plans, lifecycle rules, invoices and payments in one auditable workspace, and the AI copilot runs on your own machine.
           </p>
           <div className="lp-hero-actions">
-            <Link className="lp-btn" href="/login">
-              Open the demo
+            <Link className="lp-btn" href="#plans">
+              See the plans
             </Link>
-            <Link className="lp-btn lp-btn-ghost" href="/signup">
-              Create an account
+            <Link className="lp-btn lp-btn-ghost" href="/login">
+              Sign in
             </Link>
           </div>
         </div>
 
-        <div className="lp-hero-art" role="img" aria-label="The Brightloop subscription lifecycle as a loop around a live subscription card">
-          <span className="lp-ring lp-ring-outer" />
-          <span className="lp-ring lp-ring-inner" />
-          {STATES.map((st, i) => (
-            <span key={st.id} className={`lp-node lp-node-${i}${stage === i ? " is-current" : ""}`}>
-              {st.name}
-            </span>
-          ))}
-          <div className="lp-hero-card" data-ui>
-            <div className="lp-hero-card-top">
-              <code className="lp-mono">SUB-2026-000001</code>
-              <span className="lp-pill lp-pill-active">active</span>
+        {/* a real fragment of the console: the overview, at rest */}
+        <div className="lp-hero-shot" data-ui role="img" aria-label="The Brightloop overview: monthly revenue, MRR, outstanding and the subscriptions pipeline">
+          <div className="lp-shot-head">
+            <span className="lp-shot-title">Overview</span>
+            <code className="lp-mono">Tue 31 Oct 2026</code>
+          </div>
+          <div className="lp-shot-kpis">
+            <div>
+              <span>MRR</span>
+              <strong>₹1,11,761.67</strong>
             </div>
-            <p className="lp-hero-card-label">Next billing</p>
-            <p className="lp-hero-card-figure">₹26,539.38</p>
-            <p className="lp-hero-card-sub">
-              Sunrise Retail, CRM Monthly, 26 Nov 2026
-            </p>
+            <div>
+              <span>Collected</span>
+              <strong>₹3,40,186.84</strong>
+            </div>
+            <div>
+              <span>Outstanding</span>
+              <strong>₹26,539.38</strong>
+            </div>
+          </div>
+          <svg className="lp-shot-chart" viewBox="0 0 520 120" preserveAspectRatio="none" aria-hidden>
+            <polyline
+              fill="none"
+              stroke="#1d5fbf"
+              strokeWidth="2"
+              points="0,96 74,88 148,90 222,64 296,58 370,34 444,30 520,12"
+            />
+            <polyline fill="none" stroke="#8a8a8a" strokeWidth="1" strokeDasharray="3 3" points="0,104 520,104" />
+          </svg>
+          <div className="lp-shot-rows">
+            <div>
+              <code className="lp-mono">INV-2026-000001</code>
+              <span>Sunrise Retail</span>
+              <b>₹26,539.38</b>
+            </div>
+            <div>
+              <code className="lp-mono">INV-2026-000002</code>
+              <span>Harbour Logistics</span>
+              <b>₹11,788.20</b>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* --------------------------------------------- showcase: one run */}
-      <section className="lp-run lp-reveal" id="billing">
-        <div className="lp-run-copy">
+      {/* -------------------------------------------------- lifecycle */}
+      <section className="lp-states lp-reveal" id="lifecycle">
+        <div className="lp-section-head">
           <h2>
-            <span>One billing run.</span> <span>Zero double bills.</span>
+            <span>Six states.</span> <span>Nothing skips one.</span>
+          </h2>
+          <p>Every subscription walks the same path, and the server refuses any shortcut.</p>
+        </div>
+        <ol className="lp-state-track">
+          {STATES.map(([name, copy], i) => (
+            <li key={name}>
+              <span className="lp-state-num">{i + 1}</span>
+              <strong>{name}</strong>
+              <p>{copy}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ------------------------------------------------------ plans */}
+      <section className="lp-plans" id="plans">
+        <div className="lp-section-head">
+          <h2>
+            <span>Pick a plan.</span> <span>Subscribe in a minute.</span>
           </h2>
           <p>
-            A single pass drafts every invoice due today, renews what should renew and closes what has ended. Running it twice is safe: the period key says no.
+            Live from the workspace catalogue, exactly as the admin published it. Choose one and the checkout continues after you sign in.
           </p>
-          <button data-ui className="lp-run-btn" onClick={runBilling} disabled={runState !== "idle"}>
-            {runState === "idle" ? "Run billing for 31 Oct 2026" : runState === "running" ? "Running…" : "Run again"}
-          </button>
-          {runState === "running" && <p className="lp-run-note">Drafting invoices, renewing periods…</p>}
         </div>
 
-        <div className="lp-run-result" data-ui aria-live="polite">
-          {runState === "idle" ? (
-            <div className="lp-run-empty">
-              <code className="lp-mono">POST /api/v1/billing/run</code>
-              <p>Press the button. This is the real endpoint the admin console uses.</p>
-            </div>
-          ) : (
-            <div className="lp-run-card">
-              <div className="lp-run-card-head">
-                <code className="lp-mono">RUN · 2026-10-31</code>
-                <span className="lp-pill lp-pill-done">completed</span>
-              </div>
-              <div className="lp-run-counts">
-                <div><strong>4</strong><span>invoices created</span></div>
-                <div><strong>3</strong><span>periods renewed</span></div>
-                <div><strong>1</strong><span>subscription closed</span></div>
-                <div><strong>0</strong><span>skipped</span></div>
-              </div>
-              <table>
-                <thead>
-                  <tr><th>Invoice</th><th>Customer</th><th className="num">Total</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td><code className="lp-mono">INV-2026-000001</code></td><td>Sunrise Retail</td><td className="num">₹26,539.38</td></tr>
-                  <tr><td><code className="lp-mono">INV-2026-000002</code></td><td>Harbour Logistics</td><td className="num">₹11,788.20</td></tr>
-                  <tr><td><code className="lp-mono">INV-2026-000003</code></td><td>Nimbus Clinics</td><td className="num">₹14,159.10</td></tr>
-                </tbody>
-              </table>
-              <p className="lp-run-foot">Idempotent: a second run would create 0 and skip 4.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ------------------------------------------ features: statements */}
-      <section className="lp-bands" aria-label="What Brightloop does">
-        {FEATURES.map((f, i) => (
-          <div key={f.on} className={`lp-band lp-band-${i % 2}`}>
-            <div className="lp-band-copy">
-              <h2>
-                <i className="lp-band-dot" aria-hidden />
-                {f.on}
-              </h2>
-              <p>{f.consequence}</p>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* -------------------------------------- lifecycle: six states */}
-      <section className="lp-life lp-reveal" id="lifecycle">
-        <div className="lp-life-copy">
-          <h2>{s.clause}</h2>
-          <p>{s.copy}</p>
-        </div>
-
-        <div className="lp-life-demo" data-ui>
-          <div className="lp-life-card">
-            <div className="lp-life-head">
-              <code className="lp-mono">SUB-2026-000001</code>
-              <span className={`lp-pill lp-pill-${s.id === "active" ? "active" : s.id === "closed" ? "neutral" : "warn"}`}>{s.id}</span>
-            </div>
-            <div className="lp-life-row"><span>Customer</span><strong>Sunrise Retail</strong></div>
-            <div className="lp-life-row"><span>Plan</span><strong>CRM — Monthly</strong></div>
-            <div className="lp-life-row"><span>Next billing</span><strong>{s.next}</strong></div>
-            <div className="lp-life-event">{s.event}</div>
-            <div className="lp-life-actions">
-              {s.actions.length > 0 ? (
-                s.actions.map((a, i) => (
-                  <span key={a} className={`lp-life-action${i === 0 ? " is-primary" : ""}`}>{a}</span>
-                ))
-              ) : (
-                <span className="lp-life-none">no transitions left. The ledger is closed.</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="lp-life-slider">
-          <input
-            type="range"
-            min={0}
-            max={5}
-            value={stage}
-            onChange={(e) => setStage(Number(e.target.value))}
-            aria-label="Subscription lifecycle stage"
-            aria-valuetext={s.name}
-          />
-          <div className="lp-life-ticks">
-            {STATES.map((st, i) => (
-              <button key={st.id} className={stage === i ? "is-current" : ""} onClick={() => setStage(i)}>
-                {st.name}
-              </button>
+        {planError ? (
+          <p className="lp-plans-error">The catalogue is offline right now — the API on :4000 is not reachable.</p>
+        ) : plans === null ? (
+          <div className="lp-plan-grid">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="lp-plan-card lp-plan-skeleton" aria-hidden />
             ))}
           </div>
+        ) : plans.length === 0 ? (
+          <p className="lp-plans-error">No plans are open for subscription right now.</p>
+        ) : (
+          <div className="lp-plan-grid">
+            {plans.map((p) => (
+              <article key={p.id} className="lp-plan-card lp-reveal">
+                <div className="lp-plan-top">
+                  <div>
+                    <p><code className="lp-mono">{p.productSku}</code></p>
+                    <h3>{p.name}</h3>
+                  </div>
+                  <span className="lp-pill lp-pill-neutral">{p.interval}</span>
+                </div>
+                {p.description && <p className="lp-plan-desc">{p.description}</p>}
+                <p className="lp-plan-price">
+                  ₹{(p.price / 100).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                  <span> / {INTERVAL_LABEL[p.interval] ?? p.interval}</span>
+                </p>
+                {p.minQty > 1 && <p className="lp-plan-min">minimum {p.minQty} seats</p>}
+                <ul className="lp-plan-flags">
+                  {p.autoRenew && <li>auto-renews</li>}
+                  {p.allowPause && <li>pausable</li>}
+                  {p.allowEarlyCancel && <li>early-cancellable</li>}
+                  {p.autoCloseAtEnd && <li>closes at end date</li>}
+                </ul>
+                <Link className="lp-btn lp-plan-cta" href={subscribeHref(p)}>
+                  Subscribe
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ----------------------------------------------------- billing */}
+      <section className="lp-billing lp-reveal" id="billing">
+        <div className="lp-section-head">
+          <h2>
+            <span>Billing that can't</span> <span>double bill.</span>
+          </h2>
+          <p>
+            One admin pass drafts every invoice due today, renews periods and closes ended subscriptions. The invoice key is the subscription plus its period, so a rerun creates nothing and skips everything it already did.
+          </p>
+        </div>
+        <div className="lp-billing-grid">
+          <div className="lp-run-card lp-reveal" data-ui role="img" aria-label="A completed billing run: 4 invoices created, 3 renewed, 1 closed, 0 skipped">
+            <div className="lp-run-head">
+              <code className="lp-mono">RUN · 2026-10-31</code>
+              <span className="lp-pill lp-pill-active">completed</span>
+            </div>
+            <div className="lp-run-counts">
+              <div><strong>4</strong><span>created</span></div>
+              <div><strong>3</strong><span>renewed</span></div>
+              <div><strong>1</strong><span>closed</span></div>
+              <div><strong>0</strong><span>skipped</span></div>
+            </div>
+            <p className="lp-run-foot">A second run: created 0, skipped 4.</p>
+          </div>
+          <div className="lp-inv-card lp-reveal" data-ui role="img" aria-label="An invoice with GST and a discount snapshotted at confirm time">
+            <div className="lp-run-head">
+              <code className="lp-mono">INV-2026-000001</code>
+              <span className="lp-pill lp-pill-active">paid</span>
+            </div>
+            <div className="lp-inv-lines">
+              <div><span>Brightloop CRM — Monthly × 5</span><b>₹49,950.00</b></div>
+              <div><span className="lp-disc">WELCOME10 − 10%</span><b className="lp-disc">−₹4,995.00</b></div>
+              <div><span>GST 18%</span><b>₹8,091.00</b></div>
+            </div>
+            <div className="lp-inv-total">
+              <span>Total</span>
+              <b>₹26,539.38</b>
+            </div>
+            <p className="lp-run-foot">Tax and discounts froze at confirm time.</p>
+          </div>
         </div>
       </section>
 
-      {/* --------------------------------------- import: paste to rows */}
-      <section className="lp-import lp-reveal" id="import">
-        <div className="lp-import-copy">
+      {/* --------------------------------------------------------- ai */}
+      <section className="lp-ai lp-reveal" id="ai">
+        <div className="lp-section-head">
           <h2>
-            <span>Paste a spreadsheet.</span> <span>Get clean rows.</span>
+            <span>An AI that works</span> <span>where your data is.</span>
           </h2>
           <p>
-            The copilot maps your headers locally, shows every row before anything is written, and never invents a value that was not there. You commit, it obeys.
+            The copilot streams answers from a local Ollama model with tools scoped to your role: overdue lists, KPIs, plan advice, even drafting a quotation. Nothing leaves your machine.
           </p>
         </div>
-        <div className="lp-import-demo" data-ui>
-          <div className="lp-import-pane">
-            <p className="lp-import-label">pasted</p>
+        <div className="lp-import-grid">
+          <div className="lp-import-pane lp-reveal" data-ui role="img" aria-label="Pasted spreadsheet rows about to be mapped">
+            <p className="lp-import-label">pasted in the copilot dock</p>
             <pre>{`name, price, kind
 GraphQL Booster, 1299, addon
-Email Relay Pro, 499, service`}</pre>
+Email Relay Pro, 499, service
+Data Vault 100GB, 1599, addon`}</pre>
           </div>
-          <div className="lp-import-arrow" aria-hidden>→</div>
-          <div className="lp-import-pane">
+          <div className="lp-import-pane lp-reveal" data-ui role="img" aria-label="Staged preview: every row validated before anything is written">
             <p className="lp-import-label">staged preview · 3 of 3 valid</p>
             <table>
-              <thead><tr><th>name</th><th className="num">sales price</th><th>kind</th><th /></tr></thead>
+              <thead><tr><th>name</th><th className="num">price</th><th>kind</th><th /></tr></thead>
               <tbody>
-                <tr><td>GraphQL Booster</td><td className="num">₹1,299.00</td><td>addon</td><td><span className="lp-pill lp-pill-done">valid</span></td></tr>
-                <tr><td>Email Relay Pro</td><td className="num">₹499.00</td><td>service</td><td><span className="lp-pill lp-pill-done">valid</span></td></tr>
+                <tr><td>GraphQL Booster</td><td className="num">₹1,299</td><td>addon</td><td><span className="lp-pill lp-pill-active">valid</span></td></tr>
+                <tr><td>Email Relay Pro</td><td className="num">₹499</td><td>service</td><td><span className="lp-pill lp-pill-active">valid</span></td></tr>
+                <tr><td>Data Vault 100GB</td><td className="num">₹1,599</td><td>addon</td><td><span className="lp-pill lp-pill-active">valid</span></td></tr>
               </tbody>
             </table>
-            <span className="lp-import-commit">Commit 2 products</span>
+            <p className="lp-import-note">Reviewed under Products, then committed. The model may fix formatting; it may never invent a value.</p>
           </div>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------ pricing index */}
-      <section className="lp-pricing lp-reveal" id="plans">
-        <div className="lp-pricing-names" role="tablist" aria-label="Demo plans">
-          {PLANS.map((p, i) => (
-            <button
-              key={`${p.name}-${p.cadence}`}
-              role="tab"
-              aria-selected={selected === i}
-              className={selected === i ? "is-current" : ""}
-              onClick={() => setSelected(i)}
-            >
-              {p.name} <em>{p.cadence}</em>
-              <i className="lp-dot" />
-            </button>
-          ))}
-        </div>
-        <div className="lp-pricing-stage" data-ui>
-          <p className="lp-price">
-            {plan.price}
-            <span>{plan.period}</span>
-          </p>
-          <p className="lp-price-sub">
-            {plan.name} {plan.cadence}, GST invoiced at confirm
-          </p>
-          <p className="lp-price-copy">{plan.includes}</p>
-          <ul className="lp-price-flags">
-            {plan.flags.map((f) => (
-              <li key={f}>{f}</li>
-            ))}
-          </ul>
-          <Link className="lp-btn" href="/login">
-            {plan.cta}
-          </Link>
-        </div>
-        <p className="lp-pricing-note">Live from the seeded demo workspace. You can create these exact plans in the console in under a minute.</p>
-      </section>
-
-      {/* --------------------------------------------------------- faq */}
-      <section className="lp-faq lp-reveal" id="faq">
-        <div className="lp-faq-head">
-          <h2>Asked, answered.</h2>
-          <p>The questions the judges, sorry, customers, actually ask.</p>
-        </div>
-        <div className="lp-faq-list">
-          {FAQ.map(([q, a]) => (
-            <details key={q}>
-              <summary>
-                {q}
-                <span aria-hidden />
-              </summary>
-              <p>{a}</p>
-            </details>
-          ))}
         </div>
       </section>
 
       {/* --------------------------------------------------------- cta */}
       <Link href="/login" className="lp-cta">
-        <span className="lp-cta-note">Seeded and ready. Sign in as admin@brightloop.dev, password Bright@2025.</span>
+        <span className="lp-cta-note">A full demo workspace is waiting — sign in and click around.</span>
         <span className="lp-cta-word">
-          DEMO
-          <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden>
+          Open the demo
+          <svg viewBox="0 0 48 48" width="40" height="40" aria-hidden>
             <path d="M10 38 38 10M16 10h22v22" fill="none" stroke="currentColor" strokeWidth="4" />
           </svg>
         </span>
@@ -489,16 +337,15 @@ Email Relay Pro, 499, service`}</pre>
       {/* ------------------------------------------------------ footer */}
       <footer className="lp-footer">
         <div className="lp-footer-mark" aria-hidden>
-          <LoopMark size={72} />
+          <LoopMark size={64} />
           <span>Brightloop</span>
         </div>
         <div className="lp-footer-grid">
           <div>
             <b>Page</b>
-            <a href="#billing">Billing run</a>
             <a href="#lifecycle">Lifecycle</a>
             <a href="#plans">Plans</a>
-            <a href="#faq">FAQ</a>
+            <a href="#billing">Billing</a>
           </div>
           <div>
             <b>Workspace</b>

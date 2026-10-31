@@ -118,13 +118,44 @@ export function CopilotDock() {
       return;
     }
 
+    // SSE frames arrive as `event: <name>\ndata: <json>\n\n` — track the event
+    // name from its own line; the data payload carries the fields.
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let acc = "";
     let buf = "";
+    let currentEvent = "";
 
     const flushAcc = () =>
       setMessages((m) => [...m.slice(0, -1), { role: "assistant", content: acc }]);
+
+    const handle = (raw: string) => {
+      let ev: Record<string, unknown>;
+      try {
+        ev = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      switch (currentEvent) {
+        case "token":
+          acc += String(ev.t ?? ev.text ?? "");
+          flushAcc();
+          break;
+        case "tool_use":
+          setToolNotes((n) => [...n, `→ ${String(ev.name ?? "tool")}`]);
+          break;
+        case "tool_result":
+          setToolNotes((n) => [...n, `✓ ${String(ev.name ?? "your data")}`]);
+          break;
+        case "error":
+          acc += `\n\n${String(ev.message ?? "Something went wrong.")}`;
+          flushAcc();
+          break;
+        default:
+          break;
+      }
+      currentEvent = "";
+    };
 
     for (;;) {
       const { done, value } = await reader.read();
@@ -132,31 +163,14 @@ export function CopilotDock() {
       buf += dec.decode(value, { stream: true });
       let nl: number;
       while ((nl = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, nl).trim();
+        const line = buf.slice(0, nl).trimEnd();
         buf = buf.slice(nl + 1);
-        if (!line.startsWith("data:")) continue;
-        let ev: Record<string, unknown>;
-        try {
-          ev = JSON.parse(line.slice(5).trim());
-        } catch {
-          continue;
+        if (line.startsWith("event:")) {
+          currentEvent = line.slice(6).trim();
+        } else if (line.startsWith("data:")) {
+          handle(line.slice(5).trim());
         }
-        switch (ev.type) {
-          case "token":
-            acc += String(ev.text ?? "");
-            flushAcc();
-            break;
-          case "tool_use":
-            setToolNotes((n) => [...n, `→ ${ev.name ?? ev.tool ?? "tool"}`]);
-            break;
-          case "tool_result":
-            setToolNotes((n) => [...n, "✓ your data"]);
-            break;
-          case "error":
-            acc += `\n\n${String(ev.message ?? "Something went wrong.")}`;
-            flushAcc();
-            break;
-        }
+        // blank line = frame separator; parser state resets in handle()
       }
     }
     if (!acc.trim()) {

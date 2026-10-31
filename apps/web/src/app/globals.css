@@ -227,6 +227,17 @@ html {
   content: "▴";
 }
 
+/* ---- small screens: keep ledger grids and tables usable ---- */
+@media (max-width: 720px) {
+  /* two-up KPI bands instead of four; the Direction's phone rules */
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+.card {
+  overflow-x: auto; /* wide ledger tables scroll instead of pushing the page */
+}
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

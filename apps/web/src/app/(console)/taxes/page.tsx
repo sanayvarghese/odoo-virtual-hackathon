@@ -120,8 +120,8 @@ export default function TaxesPage() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 items-start">
-        <div className="card">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-start min-w-0">
+        <div className="card min-w-0">
           <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--color-rule)" }}>
             <h2 className="text-[16px] font-medium">Tax rules</h2>
           </div>
@@ -130,6 +130,7 @@ export default function TaxesPage() {
           ) : !taxes.data || taxes.data.items.length === 0 ? (
             <EmptyState title="No tax rules" />
           ) : (
+            <div className="overflow-x-auto">
             <table className="btable">
               <thead>
                 <tr>
@@ -155,10 +156,11 @@ export default function TaxesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
 
-        <div className="card">
+        <div className="card min-w-0">
           <div className="px-6 py-4" style={{ borderBottom: "1px solid var(--color-rule)" }}>
             <h2 className="text-[16px] font-medium">Discount rules</h2>
           </div>
@@ -167,6 +169,7 @@ export default function TaxesPage() {
           ) : !discounts.data || discounts.data.items.length === 0 ? (
             <EmptyState title="No discount rules" hint="Codes like WELCOME10 apply at subscription level or per product." />
           ) : (
+            <div className="overflow-x-auto">
             <table className="btable">
               <thead>
                 <tr>
@@ -201,6 +204,7 @@ export default function TaxesPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </div>

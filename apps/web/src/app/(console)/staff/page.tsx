@@ -51,11 +51,22 @@ export default function StaffPage() {
     onError: (e) => toast("error", e instanceof ApiError ? e.message : "Failed"),
   });
 
+  // Scene: "the admin can promote a user to staff." Customer accounts get promoted
+  // when found via search; the role change is server-validated and audited.
+  const promote = useMutation({
+    mutationFn: (id: number) => post(`/staff/${id}/promote`, {}),
+    onSuccess: () => {
+      toast("success", "Promoted to staff — they now have console access");
+      void queryClient.invalidateQueries({ queryKey: ["staff"] });
+    },
+    onError: (e) => toast("error", e instanceof ApiError ? e.message : "Failed"),
+  });
+
   return (
     <>
       <SectionTitle
         title="Staff"
-        desc="Admins and staff work the console; only admins can add or deactivate them here."
+        desc="Admins and staff work the console. Only admins can add, deactivate — or promote a customer to staff."
         action={
           <button className="btn btn-primary" onClick={() => setOpen(true)}>
             <Plus size={15} /> Add staff
@@ -65,7 +76,7 @@ export default function StaffPage() {
 
       <input
         className="input max-w-[320px] mb-3"
-        placeholder="Search name or email"
+        placeholder="Search anyone — customer matches can be promoted"
         value={q}
         onChange={(e) => setQ(e.target.value)}
       />
@@ -99,7 +110,17 @@ export default function StaffPage() {
                       {s.isActive ? "active" : "deactivated"}
                     </span>
                   </td>
-                  <td className="text-right">
+                  <td className="text-right whitespace-nowrap">
+                    {s.isActive && s.role === "customer" && (
+                      <button
+                        className="text-sm text-muted hover:text-ink cursor-pointer mr-4"
+                        onClick={() => {
+                          if (confirm(`Promote ${s.name} (${s.email}) to staff? They gain console access.`)) promote.mutate(s.id);
+                        }}
+                      >
+                        Promote to staff
+                      </button>
+                    )}
                     {s.isActive && s.role === "staff" && (
                       <button
                         className="text-sm text-muted hover:text-negative cursor-pointer"
