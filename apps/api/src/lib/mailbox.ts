@@ -1,18 +1,25 @@
 /**
- * Dev-only "mailbox": the hackathon has no SMTP server, so emails that would be sent
- * (verification, password reset) land here and are visible in the UI at /dev/mailbox.
- * Clearly labelled as a demo constraint.
+ * Email delivery: real SMTP when configured (see lib/mailer.ts), and ALWAYS a
+ * dev-mailbox copy so the demo can read any message at /mailbox. Verification
+ * and password-reset links therefore reach a real inbox when SMTP_* env vars
+ * are set, without breaking the offline demo.
  */
 import { db } from '../db/client.js';
 import { emailTokens } from '../db/schema.js';
 import { eq, desc } from 'drizzle-orm';
 import { env } from '../env.js';
+import { mailEnabled, sendRealEmail } from './mailer.js';
 
 export async function sendMessage(
   to: string,
   subject: string,
   body: string,
 ): Promise<void> {
+  if (mailEnabled()) {
+    await sendRealEmail(to, subject, body);
+    console.log(`📧 [dev mailbox copy] ${subject} → also recorded at /mailbox`);
+    return;
+  }
   console.log('\n📧 [dev mailbox] ----------------------------');
   console.log(`To     : ${to}`);
   console.log(`Subject: ${subject}`);

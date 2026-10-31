@@ -4,6 +4,7 @@ import { users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { requireRole } from '../plugins/auth.js';
 import { listMailbox } from '../lib/mailbox.js';
+import { mailEnabled } from '../lib/mailer.js';
 import { env } from '../env.js';
 
 /**
@@ -29,6 +30,7 @@ export default async function devRoutes(app: FastifyInstance) {
     appUrl: env.APP_URL,
     aiModel: env.OLLAMA_MODEL,
     aiUrl: env.OLLAMA_URL,
+    mailMode: mailEnabled() ? 'smtp' : 'mailbox',
   }));
 
   app.post('/gate', { schema: { hide: true }, preHandler: requireRole('admin') }, async (req) => {
