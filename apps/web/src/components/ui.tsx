@@ -60,11 +60,12 @@ export function SectionTitle({ title, desc, action }: { title: string; desc?: st
   );
 }
 
-export function EmptyState({ title, hint }: { title: string; hint?: string }) {
+export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center py-14 text-center">
       <p className="font-medium text-ink">{title}</p>
       {hint ? <p className="text-muted text-sm mt-1 max-w-sm">{hint}</p> : null}
+      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }
